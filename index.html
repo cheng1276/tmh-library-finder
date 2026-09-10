@@ -63,6 +63,7 @@
   .desk-foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:16px}
   .ai-opt{font-size:13.5px;color:var(--ink)}
   .hint{margin:12px 0 0;padding:10px 12px;background:var(--brass-tint);border-radius:8px;font-size:13.5px;color:#5B3F08}
+  .hint-line{margin:8px 0 0;font-size:12.5px;color:var(--muted)}
 
   /* buttons */
   .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--jade);border-radius:6px;background:#fff;color:var(--jade-deep);text-decoration:none;font-size:13.5px;line-height:1.3;cursor:pointer;white-space:nowrap}
@@ -293,7 +294,7 @@
         </fieldset>
         <fieldset>
           <legend>館藏期刊清單（用來標示「有沒有訂閱」）</legend>
-          <p class="small">把 ERM 匯出的電子期刊清單存成 CSV（UTF-8），檔名 <code>holdings.csv</code>，放在與 index.html 同一個資料夾，本頁會自動載入。標題列請用 <code>title, issn, eissn, from, to, note</code>，欄位可以缺少，也接受中文標題列（期刊名稱、ISSN、eISSN、起、迄、備註）。</p>
+          <p class="small">把 ERM 匯出的電子期刊清單存成 CSV（UTF-8），檔名 <code>holdings.csv</code>，放在與 index.html 同一個資料夾，本頁會自動載入。標題列請用 <code>title, issn, eissn, from, to, note</code>，欄位可以缺少，也接受中文標題列。用擷取腳本從 ERM 抓下來的 <code>erm-journals.csv</code>（欄位 journal_id, title, issn, lang, years, database）可以直接改名為 holdings.csv 使用：有 journal_id 時，集成平台（OVID、ProQuest、ClinicalKey…）的期刊會改由 ERM 開啟本刊。</p>
           <label class="field">先在本機試載一份清單看看效果（檔案不會上傳到任何地方）<input type="file" id="set-holdings" accept=".csv,.tsv,.txt"></label>
           <p class="small" id="holdings-status"></p>
         </fieldset>
@@ -323,6 +324,8 @@ const CONFIG = {
     // 「啟用圖書館連線」：ERM 內任一個「出版社路徑」的期刊連結。它會先要求登入 ERM，再經代理引擎（HyProxy）開啟該期刊，
     // 這個動作會在瀏覽器建立代理的登入狀態；之後本頁的「圖書館全文」才會直接通。這裡用 ERM 內 NEJM 的連結。
     activateUrl: 'https://www.scmhem.org.tw/scmherm/sendurl_api_v3.jsp?type=0&journal_id=27992',
+    // ERM 的期刊跳轉 API（後面接 journal_id）：由 ERM 處理登入與 HyProxy，開啟該期刊所在平台
+    ermJournalUrl: 'https://www.scmhem.org.tw/scmherm/sendurl_api_v3.jsp?type=0&journal_id=',
     fulltextMode: 'login-url' // 'login-url'：https://www.scmhem.org.tw:3001/login?url=出版社網址（代理標準入口，會自行處理登入與轉址）
                               // 'publisher'：直接改寫成 出版社主機-www.scmhem.org.tw:3001/…（需已在同一瀏覽器建立代理登入狀態）
                               // 'direct'   ：不經圖書館，直接開出版社（院內 IP 認證時可用）
@@ -357,20 +360,41 @@ function proxyBase(){ return 'https://' + CONFIG.library.proxyHost + proxyPortSu
 // 主機名稱改寫：https://www.nejm.org/x → https://www-nejm-org.www.scmhem.org.tw:3001/x
 function viaLibrary(url){
   const u = new URL(url);
-  return 'https://' + u.hostname.replace(/\./g,'-') + '.' + CONFIG.library.proxyHost + proxyPortSuffix() + u.pathname + u.search;
+  return 'https://' + u.hostname.replace(/\./g,'-') + '.' + CONFIG.library.proxyHost + proxyPortSuffix() + u.pathname + u.search + u.hash;
 }
 // 代理登入入口：https://www.scmhem.org.tw:3001/login?url=目標網址
 function loginUrlFor(target){ return proxyBase() + '/login?url=' + encodeURIComponent(target); }
 // 這些出版社的文章本來就免費，不必經過圖書館（經過反而可能因未設定而 404）
 const OA_PREFIXES = ['10.1186/', '10.1371/', '10.3389/', '10.3390/', '10.7717/', '10.1101/', '10.7759/', '10.2196/', '10.12688/', '10.1155/', '10.1038/s41598', '10.1136/bmjopen'];
 function isOA(rec){ return !!rec.pmc || (rec.doi && OA_PREFIXES.some(p => rec.doi.toLowerCase().startsWith(p))); }
-// 「圖書館全文」是否需要先解析 DOI（經圖書館的兩種模式都要：代理只認得出版社主機，不認得 doi.org）
-function needsResolve(rec){ return CONFIG.library.fulltextMode !== 'direct' && !!rec.doi && !isOA(rec); }
+// 館藏清單裡「所屬資料庫」是集成平台（不是出版社網站）時，單篇文章的出版社網址通常沒有權限，
+// 要改走 ERM 的期刊跳轉（開啟該平台上的本刊），再在平台內找該篇。
+const AGG_RE = /ovid|proquest|ebsco|cinahl|airiti|華藝|clinicalkey|medline|cochrane|dynamed|uptodate|hyread|kono/i;
+const isAggregator = e => !!(e && AGG_RE.test(e.note || ''));
+const platformName = e => (e && e.note ? e.note.replace(/【.*?】/g, '').trim() : '');
+// 同一刊在多個平台時的優先順序：出版社網站（單篇可直達）→ ClinicalKey（可用 PII 直達）→ 其他集成平台 → MEDLINE電子期刊
+const platformRank = e => !isAggregator(e) ? 0 : /clinicalkey/i.test(e.note) ? 1 : /medline/i.test(e.note) ? 3 : 2;
+const ermJournalLink = e => (e && e.jid && CONFIG.library.ermJournalUrl) ? CONFIG.library.ermJournalUrl + encodeURIComponent(e.jid) : '';
+// 決定「圖書館全文」主按鈕走哪條路：article（出版社文章經代理）| clinicalkey（ClinicalKey 單篇）| erm（ERM 開本刊）
+function routeFor(rec, forceArticle){
+  const h = holdingFor(rec);
+  if (forceArticle || !h || h.status === 'no' || !h.entry) return { kind: 'article', h, entry: h && h.entry };
+  const e = h.entry;
+  if (isAggregator(e) && ermJournalLink(e)) return { kind: /clinicalkey/i.test(e.note) && rec.doi ? 'clinicalkey' : 'erm', h, entry: e };
+  return { kind: 'article', h, entry: e };
+}
+// 「圖書館全文」是否需要先解析 DOI（代理只認得出版社主機，不認得 doi.org）
+function needsResolve(rec, forceArticle){
+  if (CONFIG.library.fulltextMode === 'direct' || !rec.doi || isOA(rec)) return false;
+  return routeFor(rec, forceArticle).kind !== 'erm';
+}
 // 不需解析時可直接算出的連結；需解析時先給備援網址（中鍵／Ctrl 點擊、或解析失敗時用）
-function fulltextHref(rec){
+function fulltextHref(rec, forceArticle){
   const pm  = 'https://pubmed.ncbi.nlm.nih.gov/' + rec.pmid + '/';
   const doi = rec.doi ? 'https://doi.org/' + rec.doi : '';
   if (CONFIG.library.fulltextMode === 'direct' || !doi || isOA(rec)) return doi || pm;
+  const r = routeFor(rec, forceArticle);
+  if (r.kind === 'erm') return ermJournalLink(r.entry);
   if (CONFIG.library.fulltextMode === 'login-url') return loginUrlFor(doi);
   return doi;
 }
@@ -409,10 +433,16 @@ async function resolveDOI(doi){
   return p;
 }
 // 最終要開啟的「圖書館全文」網址（先解析 DOI 取得出版社網址）
-async function fulltextTarget(rec){
-  if (!needsResolve(rec)) return fulltextHref(rec);
+async function fulltextTarget(rec, forceArticle){
+  if (!needsResolve(rec, forceArticle)) return fulltextHref(rec, forceArticle);
+  const r = routeFor(rec, forceArticle);
   const pub = await resolveDOI(rec.doi);
   const doiUrl = 'https://doi.org/' + rec.doi;
+  const wrap = t => CONFIG.library.fulltextMode === 'publisher' ? viaLibrary(t) : loginUrlFor(t);
+  if (r.kind === 'clinicalkey') {   // Elsevier 期刊經 ClinicalKey 訂閱：用 PII 直達單篇
+    const m = pub && pub.match(/sciencedirect\.com\/science\/article\/pii\/([A-Za-z0-9]+)/);
+    return m ? wrap('https://www.clinicalkey.com/#!/content/playContent/1-s2.0-' + m[1]) : ermJournalLink(r.entry);
+  }
   if (CONFIG.library.fulltextMode === 'login-url') return loginUrlFor(pub || doiUrl);
   return pub ? viaLibrary(pub) : doiUrl;
 }
@@ -560,13 +590,22 @@ async function aiWebFallback(question, term){
 
 /* ---------- 館藏清單（可選）：判斷期刊是否訂閱 ---------- */
 const HEAD_ALIAS = {
-  title:['title','journal','journal title','期刊','期刊名稱','刊名','期刊名'],
-  issn:['issn','pissn','print issn','紙本issn'],
-  eissn:['eissn','e-issn','online issn','電子issn','eissn '],
+  title:['title','journal','journal title','期刊','期刊名稱','刊名','期刊名','題名'],
+  issn:['issn','pissn','print issn','紙本issn','issn/isbn'],
+  eissn:['eissn','e-issn','online issn','電子issn'],
   from:['from','start','起','起始年','起年','coverage from'],
   to:['to','end','迄','結束年','迄年','coverage to'],
-  note:['note','platform','備註','平台','資料庫','來源']
+  years:['years','coverage','全文收錄年代','收錄年代','年代'],
+  note:['note','platform','database','備註','平台','資料庫','來源','所屬資料庫'],
+  jid:['journal_id','jid','id','編號']
 };
+// 解析 ERM 的「全文收錄年代」字串：2013-2017、2015-present、8/1/2024+、20030501-20151201、20160101-、2000.01-present
+function parseYears(v){
+  const t = String(v || '').trim();
+  const ys = (t.match(/(?:19|20)\d{2}/g) || []).map(Number);
+  const open = /present|current|\+|至今|迄今|-\s*$/i.test(t);
+  return { from: ys[0] || 0, to: ys.length > 1 ? ys[ys.length - 1] : (open ? 0 : (ys[0] || 0)) };
+}
 function parseDelimited(text){
   text = text.replace(/^\uFEFF/, '');
   const first = text.split(/\r?\n/, 1)[0];
@@ -592,14 +631,19 @@ function buildHoldings(text){
   const col = {}; Object.entries(HEAD_ALIAS).forEach(([k, names]) => { col[k] = head.findIndex(h => names.includes(h)); });
   if (col.title < 0 && col.issn < 0 && col.eissn < 0) throw new Error('找不到 title 或 issn 欄位；標題列請用 title,issn,eissn,from,to,note');
   const year = v => { const m = String(v || '').match(/\d{4}/); return m ? +m[0] : 0; };
-  const entries = rows.slice(1).map(r => ({
-    title: col.title >= 0 ? (r[col.title] || '').trim() : '',
-    issn:  col.issn  >= 0 ? normISSN(r[col.issn])  : '',
-    eissn: col.eissn >= 0 ? normISSN(r[col.eissn]) : '',
-    from:  col.from  >= 0 ? year(r[col.from]) : 0,
-    to:    col.to    >= 0 ? year(r[col.to])   : 0,
-    note:  col.note  >= 0 ? (r[col.note] || '').trim() : ''
-  })).filter(e => e.title || e.issn || e.eissn);
+  const entries = rows.slice(1).map(r => {
+    const e = {
+      title: col.title >= 0 ? (r[col.title] || '').trim() : '',
+      issn:  col.issn  >= 0 ? normISSN(r[col.issn])  : '',
+      eissn: col.eissn >= 0 ? normISSN(r[col.eissn]) : '',
+      from:  col.from  >= 0 ? year(r[col.from]) : 0,
+      to:    col.to    >= 0 ? year(r[col.to])   : 0,
+      note:  col.note  >= 0 ? (r[col.note] || '').trim() : '',
+      jid:   col.jid   >= 0 ? String(r[col.jid] || '').trim().replace(/\D/g, '') : ''
+    };
+    if (!e.from && !e.to && col.years >= 0) Object.assign(e, parseYears(r[col.years]));
+    return e;
+  }).filter(e => e.title || e.issn || e.eissn);
   const byIssn = new Map(), byTitle = new Map();
   const add = (m, k, e) => { if (!k) return; if (!m.has(k)) m.set(k, []); m.get(k).push(e); };
   entries.forEach(e => { add(byIssn, e.issn, e); add(byIssn, e.eissn, e); add(byTitle, normTitle(e.title), e); });
@@ -614,9 +658,11 @@ function holdingFor(rec){
   if (!list) return { status: 'no' };
   const y = +rec.year || 0;
   const range = e => (e.from || e.to) ? (e.from || '') + '–' + (e.to || '今') : '';
-  const covered = list.filter(e => !y || ((!e.from || y >= e.from) && (!e.to || y <= e.to)));
-  if (covered.length) return { status: 'yes', entry: covered[0], range: range(covered[0]) };
-  return { status: 'partial', entry: list[0], range: range(list[0]) };
+  // 同一刊可能在多個平台：優先出版社平台（單篇可直達），其次集成平台
+  const covered = list.filter(e => !y || ((!e.from || y >= e.from) && (!e.to || y <= e.to))).sort((a, b) => platformRank(a) - platformRank(b));
+  if (covered.length) return { status: 'yes', entry: covered[0], range: range(covered[0]), alts: covered.slice(1) };
+  const widest = list.slice().sort((a, b) => ((b.to || 9999) - (b.from || 0)) - ((a.to || 9999) - (a.from || 0)))[0];
+  return { status: 'partial', entry: widest, range: range(widest), alts: [] };
 }
 function setHoldings(text, source){
   S.holdings = buildHoldings(text); S.holdingsSource = source; paintPills();
@@ -724,9 +770,9 @@ function recHTML(rec){
   if (rec.pmc) tags.push('<span class="tag free">PMC 免費全文</span>');
   if (rec.lang && rec.lang[0] && rec.lang[0] !== 'eng') tags.push('<span class="tag">' + esc(LANG[rec.lang[0]] || rec.lang[0]) + '</span>');
   if (rec.fromWeb) tags.push('<span class="tag warn">AI 網頁檢索結果，請點 PubMed 核對</span>');
-  const h = holdingFor(rec);
+  const route = routeFor(rec); const h = route.h;
   if (h && !isOA(rec)) {
-    if (h.status === 'yes') tags.push('<span class="tag ok">館藏訂閱' + (h.range ? '（' + esc(h.range) + '）' : '') + (h.entry.note ? '：' + esc(h.entry.note) : '') + '</span>');
+    if (h.status === 'yes') tags.push('<span class="tag ok">館藏訂閱' + (h.range ? '（' + esc(h.range) + '）' : '') + (platformName(h.entry) ? '：' + esc(platformName(h.entry)) : '') + '</span>');
     else if (h.status === 'partial') tags.push('<span class="tag warn">訂閱範圍 ' + esc(h.range) + '，本文 ' + esc(rec.year) + ' 年不在範圍內</span>');
     else tags.push('<span class="tag muted">館藏清單未列此刊</span>');
   }
@@ -734,10 +780,19 @@ function recHTML(rec){
   tags.push('<span class="tag id">PMID ' + esc(rec.pmid) + '</span>');
   if (rec.doi) tags.push('<a class="tag id" target="_blank" rel="noopener" title="出版社原站（不經圖書館）" href="https://doi.org/' + esc(rec.doi) + '">DOI ' + esc(rec.doi) + '</a>');
   const hasAbs = rec.abstractParts && rec.abstractParts.length;
+  const primaryLabel = isOA(rec) && CONFIG.library.fulltextMode !== 'direct' ? '全文（免費）'
+    : h && h.status === 'no' ? '試試圖書館'
+    : route.kind === 'erm' ? '圖書館全文（' + esc(platformName(route.entry)) + '）'
+    : route.kind === 'clinicalkey' ? '圖書館全文（ClinicalKey）' : '圖書館全文';
+  const primaryTitle = isOA(rec) ? '免費文章，直接開啟出版社網頁'
+    : h && h.status === 'no' ? '此刊不在館藏清單，仍可試試（可能會顯示未訂閱）'
+    : route.kind === 'erm' ? '由 ERM 開啟 ' + platformName(route.entry) + ' 上的本刊（ERM 會處理登入），再在平台內找這一篇'
+    : route.kind === 'clinicalkey' ? '經圖書館代理直接開啟 ClinicalKey 上的這一篇'
+    : needsResolve(rec) ? '先解析 DOI，再經由圖書館代理引擎開啟出版社網頁' : '';
   const acts = [
-    '<a class="btn lib' + (h && h.status !== 'yes' && !isOA(rec) ? ' soft' : '') + '" target="_blank" rel="noopener" href="' + esc(fulltextHref(rec)) + '" title="' +
-      (isOA(rec) ? '免費文章，直接開啟出版社網頁' : h && h.status === 'no' ? '此刊不在館藏清單，仍可試試（可能會顯示未訂閱）' : needsResolve(rec) ? '先解析 DOI，再經由圖書館代理引擎開啟出版社網頁' : '') + '">' +
-      (isOA(rec) && CONFIG.library.fulltextMode !== 'direct' ? '全文（免費）' : h && h.status === 'no' ? '試試圖書館' : '圖書館全文') + '</a>',
+    '<a class="btn lib' + (h && h.status !== 'yes' && !isOA(rec) ? ' soft' : '') + '" data-route="primary" target="_blank" rel="noopener" href="' + esc(fulltextHref(rec)) + '" title="' + esc(primaryTitle) + '">' + primaryLabel + '</a>',
+    (route.kind === 'erm' || route.kind === 'clinicalkey') && rec.doi ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改走出版社網站（經圖書館代理；若圖書館只訂集成平台，可能顯示未訂閱）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '',
+    route.kind === 'article' && route.entry && ermJournalLink(route.entry) && !isOA(rec) ? '<a class="btn lib soft" target="_blank" rel="noopener" title="由 ERM 開啟本刊所在平台（也會順便啟用圖書館連線）" href="' + esc(ermJournalLink(route.entry)) + '">從 ERM 開本刊</a>' : '',
     '<a class="btn" target="_blank" rel="noopener" href="' + esc(pm) + '">PubMed</a>',
     rec.pmc ? '<a class="btn" target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/' + esc(rec.pmc) + '/">PMC 免費全文</a>' : '',
     rec.oa && !rec.pmc ? '<a class="btn oa" target="_blank" rel="noopener" title="OpenAlex／Unpaywall 找到的合法免費全文" href="' + esc(rec.oa) + '">免費版本</a>' : '',
@@ -745,13 +800,15 @@ function recHTML(rec){
     '<button type="button" class="btn ghost" data-act="cite">複製引用</button>',
     CONFIG.ill && CONFIG.ill.url && !isOA(rec) && !rec.oa && !(h && h.status === 'yes') ? '<a class="btn ghost" target="_blank" rel="noopener" title="圖書館沒訂閱時，可向其他圖書館申請文獻（先按「複製引用」帶著書目資料去填）" href="' + esc(CONFIG.ill.url) + '">' + esc(CONFIG.ill.label) + '</a>' : ''
   ].filter(Boolean).join('');
+  const locator = (rec.year || '') + (rec.volume ? ';' + rec.volume + (rec.issue ? '(' + rec.issue + ')' : '') : '') + (rec.pages ? ':' + rec.pages : '');
+  const hintLine = route.kind === 'erm' && !isOA(rec) ? '<p class="hint-line">本刊經 ' + esc(platformName(route.entry)) + ' 訂閱：開啟平台後請找 ' + esc(locator || rec.year) + (h.alts && h.alts.length ? '；也在 ' + h.alts.map(a => esc(platformName(a))).join('、') : '') + '</p>' : '';
   const abs = hasAbs ? '<div class="abs">' + rec.abstractParts.map(p => (p.label ? '<b>' + esc(p.label) + '：</b>' : '') + esc(p.text)).join('<br>') +
               (rec.mesh && rec.mesh.length ? '<div class="mesh">MeSH：' + rec.mesh.map(esc).join('；') + '</div>' : '') + '</div>' : '';
   return '<div class="n">' + rec.n + '</div><div class="body">' +
     '<h3><a target="_blank" rel="noopener" href="' + esc(pm) + '">' + esc(rec.title) + '</a></h3>' +
     '<p class="cite">' + esc(citeLine(rec)) + '</p>' +
     (rec.why ? '<p class="why">' + esc(rec.why) + '</p>' : '') +
-    '<div class="tags">' + tags.join('') + '</div><div class="acts">' + acts + '</div>' + abs + '</div>';
+    '<div class="tags">' + tags.join('') + '</div><div class="acts">' + acts + '</div>' + hintLine + abs + '</div>';
 }
 function renderRecords(recs, start){
   const ol = $('#results');
@@ -882,20 +939,21 @@ $('#summarize').addEventListener('click', aiSummarize);
 document.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => { $('#q').value = b.textContent; search({ fresh: true }); }));
 $('#results').addEventListener('pointerover', e => {   // 滑鼠移到按鈕上就先解析，點擊時才不用等
   const a = e.target.closest('a.lib'); if (!a) return;
-  const rec = S.records[+a.closest('li.rec').dataset.i]; if (rec && needsResolve(rec)) fulltextTarget(rec);
+  const rec = S.records[+a.closest('li.rec').dataset.i]; const fa = a.dataset.route === 'article';
+  if (rec && needsResolve(rec, fa)) fulltextTarget(rec, fa);
 });
 $('#results').addEventListener('click', async e => {
   const lib = e.target.closest('a.lib');
   if (lib && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && !lib.dataset.ready) {
-    const rec = S.records[+lib.closest('li.rec').dataset.i];
-    if (rec && needsResolve(rec)) {
+    const rec = S.records[+lib.closest('li.rec').dataset.i]; const fa = lib.dataset.route === 'article';
+    if (rec && needsResolve(rec, fa)) {
       e.preventDefault();
       // 一律先同步開新分頁（Safari 只允許在點擊當下開視窗），解析完再導向
       const cached = doiCache.has(rec.doi);
       const w = window.open('', '_blank');
       if (w) { try { w.opener = null; } catch (_) {} }
       if (w && !cached) { try { w.document.write('<!doctype html><meta charset="utf-8"><title>透過圖書館開啟全文</title><div style="font-family:sans-serif;padding:28px;max-width:60ch;color:#333;line-height:1.7"><p style="font-size:17px;margin:0 0 12px">正在解析 DOI 並透過圖書館開啟全文…</p><p style="margin:0;font-size:14px;color:#555">接下來若出現 <b>HyProxy Login</b> 畫面，代表這個瀏覽器還沒啟用圖書館連線：請關閉這一頁，回到查詢頁按「啟用圖書館連線」完成登入，再點一次連結。</p></div>'); } catch (_) {} }
-      const [url] = await Promise.all([fulltextTarget(rec), new Promise(res => setTimeout(res, (cached || S.libClicks) ? 0 : 1800))]);
+      const [url] = await Promise.all([fulltextTarget(rec, fa), new Promise(res => setTimeout(res, (cached || S.libClicks) ? 0 : 1800))]);
       S.libClicks = (S.libClicks || 0) + 1;
       if (w && !w.closed) w.location.href = url;
       else { lib.href = url; lib.dataset.ready = '1'; lib.textContent = '再點一次開啟全文'; }
