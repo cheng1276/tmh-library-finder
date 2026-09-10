@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>找文獻｜台南市立醫院圖書館</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16262E; --muted:#5B6A70; --paper:#EEF2F0; --card:#FFFFFF; --line:#D5DFDA; --soft:#F5F8F6;
+    --jade:#1B6B5A; --jade-deep:#114A3E; --jade-tint:#E4F0EC;
+    --brass:#9A6B14; --brass-deep:#7A540E; --brass-tint:#F7EEDC;
+    --blue-tint:#E6F0FA; --blue:#1D4E89;
+    --danger:#A63D2F; --danger-tint:#F9E7E4;
+    --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
+    --serif:Georgia,"Noto Serif TC","Times New Roman","PMingLiU",serif;
+    --mono:ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65}
+  [hidden]{display:none!important}
+  a{color:var(--jade)}
+  button,input,select,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:3px solid #7FC9B2;outline-offset:2px}
+
+  /* masthead */
+  .mast{background:var(--jade-deep);color:#fff;padding:26px 20px 58px}
+  .mast-in{max-width:880px;margin:0 auto;display:flex;flex-wrap:wrap;gap:18px 32px;align-items:flex-end;justify-content:space-between}
+  .org{font-size:14px;opacity:.85;margin-bottom:4px}
+  .mast h1{margin:0;font-size:38px;font-weight:700;letter-spacing:.04em;line-height:1.1}
+  .tagline{margin:10px 0 0;font-size:14px;opacity:.92;max-width:46ch}
+  .mast-side{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+  .pills{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;padding:4px 11px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);white-space:nowrap}
+  .pill i{width:8px;height:8px;border-radius:50%;background:#B9C4C0;display:inline-block;flex:none}
+  .pill.ok i{background:#7FE0B0}
+  .pill.off i{background:#F0B37E}
+  .login-link{color:#fff;font-size:13.5px;text-underline-offset:3px}
+
+  main{max-width:880px;margin:-36px auto 64px;padding:0 20px}
+
+  /* search desk */
+  .desk{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--jade);border-radius:10px;padding:20px 22px 18px}
+  .desk-label{display:block;font-weight:500;font-size:16px;margin-bottom:8px}
+  textarea#q{width:100%;min-height:76px;resize:vertical;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;line-height:1.6}
+  textarea#q::placeholder{color:#8C989C}
+  .examples{margin:10px 0 0;font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+  .ex{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:13px;cursor:pointer;color:var(--ink)}
+  .ex:hover{border-color:var(--jade);color:var(--jade-deep)}
+  .filters{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+  .filters label{display:inline-flex;align-items:center;gap:6px}
+  .filters select{padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  .chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .chk input{width:16px;height:16px;accent-color:var(--jade)}
+  .desk-foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:16px}
+  .ai-opt{font-size:13.5px;color:var(--ink)}
+  .hint{margin:12px 0 0;padding:10px 12px;background:var(--brass-tint);border-radius:8px;font-size:13.5px;color:#5B3F08}
+
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--jade);border-radius:6px;background:#fff;color:var(--jade-deep);text-decoration:none;font-size:13.5px;line-height:1.3;cursor:pointer;white-space:nowrap}
+  .btn:hover{background:var(--jade-tint)}
+  .btn.primary{background:var(--jade);color:#fff;padding:10px 26px;font-size:15px;font-weight:500}
+  .btn.primary:hover{background:var(--jade-deep)}
+  .btn.primary:disabled{opacity:.55;cursor:wait}
+  .btn.lib{background:var(--brass);border-color:var(--brass);color:#fff;font-weight:500}
+  .btn.lib:hover{background:var(--brass-deep);border-color:var(--brass-deep)}
+  .btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding-left:8px;padding-right:8px}
+  .btn.ghost:hover{background:var(--soft);color:var(--ink)}
+  .btn.wide{width:100%;justify-content:center;padding:11px}
+
+  /* status */
+  #status{margin:16px 0 0;font-size:14px;color:var(--muted);display:flex;gap:10px;align-items:center;min-height:1.5em}
+  #status.error{color:var(--danger);background:var(--danger-tint);padding:10px 14px;border-radius:8px}
+  .spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--jade);border-radius:50%;animation:spin .9s linear infinite;flex:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spin{animation:none;border-top-color:var(--line)}}
+
+  /* ledger: what was actually sent to PubMed */
+  .ledger{margin-top:20px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px}
+  .ledger h2{margin:0 0 8px;font-size:14px;font-weight:500;color:var(--muted)}
+  .ledger .count{float:right;font-size:13.5px;color:var(--ink)}
+  .ledger textarea{width:100%;min-height:76px;resize:vertical;padding:9px 11px;border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--soft)}
+  .ledger .row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:10px;font-size:13.5px}
+  .ledger .strategy{margin:10px 0 0;padding:10px 12px;background:var(--jade-tint);border-radius:8px;font-size:13.5px}
+  .ledger .strategy ul{margin:6px 0 0;padding-left:18px}
+  .ledger details{margin-top:10px;font-size:13px;color:var(--muted)}
+  .ledger details pre{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12.5px;margin:6px 0 0;padding:8px 10px;background:var(--soft);border-radius:6px;color:var(--ink)}
+  .notfound{margin-top:8px;font-size:13.5px;color:var(--danger)}
+
+  /* AI summary */
+  .aipanel{margin-top:16px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--jade);border-radius:10px;padding:16px 20px}
+  .aipanel h2{margin:0 0 6px;font-size:15px;font-weight:500}
+  .aipanel p{margin:0}
+  .aipanel .sum{margin-top:10px;font-size:14.5px;line-height:1.8;max-width:70ch}
+  .aipanel .sum a{font-weight:500;text-decoration:none;background:var(--jade-tint);padding:0 4px;border-radius:4px}
+  .aipanel .disc{margin-top:10px;font-size:12.5px;color:var(--muted)}
+
+  /* results */
+  ol#results{list-style:none;margin:18px 0 0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:10px}
+  ol#results:empty{display:none}
+  .rec{display:grid;grid-template-columns:40px 1fr;gap:0 8px;padding:18px 20px;border-top:1px solid var(--line)}
+  .rec:first-child{border-top:0}
+  .rec .n{font-family:var(--serif);font-size:19px;color:var(--jade);line-height:1.3;padding-top:1px}
+  .rec h3{margin:0 0 4px;font-family:var(--serif);font-weight:400;font-size:18.5px;line-height:1.38}
+  .rec h3 a{color:var(--ink);text-decoration:none}
+  .rec h3 a:hover{text-decoration:underline;text-underline-offset:3px}
+  .cite{color:var(--muted);font-size:13.5px;margin:0 0 8px}
+  .why{margin:0 0 8px;font-size:13.5px;color:var(--ink)}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .tag{font-size:12px;padding:2px 8px;border-radius:4px;background:var(--jade-tint);color:var(--jade-deep);line-height:1.5}
+  .tag.free{background:var(--blue-tint);color:var(--blue)}
+  .tag.warn{background:var(--brass-tint);color:#5B3F08}
+  .tag.id{background:transparent;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11.5px}
+  .acts{display:flex;flex-wrap:wrap;gap:8px}
+  .abs{display:none;margin-top:12px;padding:12px 14px;background:var(--soft);border-radius:8px;font-size:14px;line-height:1.75;max-width:74ch}
+  .abs.open{display:block}
+  .abs b{color:var(--jade-deep)}
+  .mesh{margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .empty{padding:28px 20px;color:var(--muted);font-size:14.5px}
+  .empty ul{margin:8px 0 0;padding-left:20px}
+  #more-wrap{margin-top:14px}
+  .firstnote{margin:14px 0 0;font-size:13px;color:var(--muted)}
+
+  /* about + settings */
+  .about{margin-top:34px;font-size:14px}
+  .about details{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:0 20px;margin-bottom:10px}
+  .about summary{cursor:pointer;padding:14px 0;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  .about summary::-webkit-details-marker{display:none}
+  .about summary::after{content:"＋";color:var(--muted);font-weight:400}
+  .about details[open] summary::after{content:"－"}
+  .about .inner{padding:0 0 16px;color:var(--ink)}
+  .about .inner p{margin:0 0 10px;max-width:70ch}
+  .about fieldset{border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:0 0 12px}
+  .about legend{padding:0 6px;color:var(--muted);font-size:13px}
+  .about fieldset label{display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-size:13.5px}
+  .about fieldset input{margin-top:4px;accent-color:var(--jade)}
+  .about .field{display:flex;flex-direction:column;gap:4px;margin:0 0 10px;font-size:13.5px;max-width:420px}
+  .about .field input,.about .field select{padding:6px 9px;border:1px solid var(--line);border-radius:6px}
+  .small{font-size:12.5px;color:var(--muted)}
+  footer{max-width:880px;margin:0 auto;padding:0 20px 40px;font-size:12.5px;color:var(--muted)}
+
+  @media (max-width:640px){
+    .mast{padding:22px 16px 52px}
+    .mast h1{font-size:30px}
+    main{padding:0 12px}
+    .desk{padding:16px 14px 14px}
+    .rec{grid-template-columns:30px 1fr;padding:16px 14px}
+    .rec h3{font-size:17px}
+    .ledger,.aipanel{padding:14px}
+    .btn.primary{width:100%;justify-content:center}
+  }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-in">
+    <div>
+      <div class="org">台南市立醫院圖書館</div>
+      <h1>找文獻</h1>
+      <p class="tagline">用中文或英文描述你的問題。查到的每一筆都是 PubMed 收錄的真實文獻，附 PMID／DOI 可核對，並可直接透過圖書館取得全文。</p>
+    </div>
+    <div class="mast-side">
+      <div class="pills" aria-live="polite">
+        <span class="pill" id="pill-pubmed"><i></i>PubMed 連線檢查中</span>
+        <span class="pill" id="pill-ai"><i></i>AI 助理檢查中</span>
+      </div>
+      <a class="login-link" id="login-link" href="https://www.scmhem.org.tw/scmherm/index.jsp" target="_blank" rel="noopener">登入圖書館遠端系統（開新視窗）</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="desk" aria-label="查詢">
+    <label for="q" class="desk-label">你想找什麼？</label>
+    <textarea id="q" rows="2" placeholder="例如：老年髖部骨折術後，預防譫妄有哪些有效的介入措施？"></textarea>
+    <div class="examples">試試：
+      <button type="button" class="ex">老年髖部骨折術後預防譫妄的介入措施</button>
+      <button type="button" class="ex">SGLT2 抑制劑對第二型糖尿病心衰竭住院的影響</button>
+      <button type="button" class="ex">nurse-led discharge education readmission</button>
+    </div>
+    <div class="filters">
+      <label>年份
+        <select id="yr">
+          <option value="">不限</option>
+          <option value="1">近 1 年</option>
+          <option value="3">近 3 年</option>
+          <option value="5">近 5 年</option>
+          <option value="10">近 10 年</option>
+        </select>
+      </label>
+      <label>文獻類型
+        <select id="pt">
+          <option value="">不限</option>
+          <option value="(systematic review[pt] OR meta-analysis[pt] OR systematic[sb])">系統性回顧／統合分析</option>
+          <option value="randomized controlled trial[pt]">隨機對照試驗</option>
+          <option value="(practice guideline[pt] OR guideline[pt])">臨床指引</option>
+          <option value="clinical trial[pt]">臨床試驗（所有類型）</option>
+          <option value="review[pt]">回顧文章</option>
+          <option value="case reports[pt]">病例報告</option>
+        </select>
+      </label>
+      <label>排序
+        <select id="sort">
+          <option value="relevance">最相關</option>
+          <option value="pub_date">最新</option>
+        </select>
+      </label>
+      <label class="chk"><input type="checkbox" id="humans"> 只看人類研究</label>
+      <label class="chk"><input type="checkbox" id="free"> 只看免費全文</label>
+    </div>
+    <div class="desk-foot">
+      <label class="chk ai-opt" id="ai-opt" hidden><input type="checkbox" id="useai" checked> 先請 AI 把問題轉成 PubMed 英文檢索式（MeSH、同義詞）</label>
+      <span id="ai-opt-space"></span>
+      <button type="button" id="go" class="btn primary">查找</button>
+    </div>
+    <p class="hint" id="hint" hidden></p>
+  </section>
+
+  <div id="status" aria-live="polite"></div>
+
+  <section class="ledger" id="ledger" hidden aria-label="實際送出的檢索式">
+    <h2>送出的 PubMed 檢索式 <span class="count" id="count"></span></h2>
+    <textarea id="term" spellcheck="false" aria-label="檢索式"></textarea>
+    <div class="row">
+      <button type="button" class="btn" id="rerun">用這個檢索式重新查找</button>
+      <a id="open-pubmed" href="#" target="_blank" rel="noopener">在 PubMed 開啟此檢索</a>
+      <a id="open-pubmed-lib" href="#" target="_blank" rel="noopener">透過圖書館開啟此檢索</a>
+    </div>
+    <div class="strategy" id="strategy" hidden></div>
+    <div class="notfound" id="notfound" hidden></div>
+    <details id="translation-box" hidden>
+      <summary>PubMed 實際如何解讀這個檢索式</summary>
+      <pre id="translation"></pre>
+    </details>
+  </section>
+
+  <section class="aipanel" id="aipanel" hidden aria-label="AI 重點整理">
+    <h2>AI 重點整理</h2>
+    <p class="small" id="ai-scope"></p>
+    <div id="ai-action"><button type="button" class="btn" id="summarize">請 AI 整理重點（只依據上列文獻的摘要）</button></div>
+    <div class="sum" id="ai-sum" hidden></div>
+    <p class="disc" id="ai-disc" hidden>這段整理只轉述上列摘要的內容，每句都標注來源編號；它不是醫療建議，請務必閱讀原文核實。</p>
+  </section>
+
+  <ol id="results"></ol>
+  <p class="firstnote" id="firstnote" hidden>第一次點「圖書館全文」會先看到圖書館的登入頁；登入後再點一次連結即可，同一瀏覽器內後續的連結都會直接開啟。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
+  <div id="more-wrap" hidden><button type="button" class="btn wide" id="more">載入更多</button></div>
+
+  <section class="about" aria-label="說明與設定">
+    <details>
+      <summary>這個工具怎麼運作？帳號密碼安全嗎？</summary>
+      <div class="inner">
+        <p><strong>資料來源有所本。</strong>每一筆結果都直接來自美國國家醫學圖書館的 PubMed 資料庫（官方 E-utilities 介面），附有 PMID 與 DOI 可供核對；本頁不會自行「產生」任何文獻。</p>
+        <p><strong>帳號密碼不經過本頁。</strong>本頁不會要求、也不會儲存你的圖書館帳號密碼。點「圖書館全文」會開啟圖書館官方的遠端連線系統（www.scmhem.org.tw），登入之後即可經由圖書館訂閱取得全文。</p>
+        <p><strong>AI 只做兩件事。</strong>在可連上 AI 服務的環境（例如發佈為 Claude 應用）才會啟用：一是把中文問題轉成 PubMed 檢索式，並把檢索式完整顯示給你檢查；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。若 AI 不可用，本頁仍可直接以英文檢索 PubMed。</p>
+        <p><strong>要讓全院同仁使用？</strong>把這一個 HTML 檔放到院內網站或任何靜態網頁空間即可，不需要伺服器程式；直接用瀏覽器開啟檔案也能查詢。</p>
+        <p><strong>找不到想要的內容？</strong>華藝中文期刊、UpToDate、ClinicalKey、Micromedex 等資料庫不在 PubMed 索引範圍，請從圖書館遠端系統的資料庫清單進入查詢。</p>
+      </div>
+    </details>
+    <details>
+      <summary>設定（圖書館管理者）</summary>
+      <div class="inner">
+        <fieldset>
+          <legend>「圖書館全文」連結方式</legend>
+          <label><input type="radio" name="ftmode" value="pubmed" checked> 透過圖書館遠端系統開啟該篇的 PubMed 頁面，再由頁面上的全文連結進入出版社（網址格式已確認：pubmed-ncbi-nlm-nih-gov.www.scmhem.org.tw）</label>
+          <label><input type="radio" name="ftmode" value="doi"> 透過圖書館遠端系統直接開啟 DOI（doi-org.www.scmhem.org.tw／10.…）</label>
+          <label><input type="radio" name="ftmode" value="login-url"> 以 login?url= 前綴導向（EZproxy 標準格式）</label>
+        </fieldset>
+        <label class="field">NCBI API key（選填，可提高查詢頻率上限）<input id="set-key" autocomplete="off"></label>
+        <label class="field">聯絡 email（選填，NCBI 建議提供）<input id="set-email" autocomplete="off"></label>
+        <label class="field">每頁筆數
+          <select id="set-size"><option>10</option><option selected>20</option><option>50</option></select>
+        </label>
+        <p class="small">這些設定只在本次開啟期間有效。要永久變更，請編輯檔案開頭的 CONFIG 區塊。</p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<footer>資料來源：NCBI PubMed（E-utilities）。全文透過台南市立醫院圖書館遠端連線系統取得，依各資料庫授權範圍為準。</footer>
+
+<script>
+/* =========================================================
+   CONFIG — 圖書館管理者可在此調整
+   ========================================================= */
+const CONFIG = {
+  library: {
+    proxyHost: 'www.scmhem.org.tw',                            // 遠端連線系統主機（主機名稱改寫式代理）
+    loginUrl:  'https://www.scmhem.org.tw/scmherm/index.jsp',  // 登入頁
+    fulltextMode: 'pubmed'   // 'pubmed'：透過圖書館開 PubMed 頁 | 'doi'：透過圖書館開 DOI | 'login-url'：login?url= 前綴
+  },
+  ncbi: { tool: 'tmh-library-finder', email: '', apiKey: '' },
+  pageSize: 20,
+  ai: { model: 'claude-sonnet-4-6' }
+};
+
+/* ---------- 小工具 ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hasCJK = s => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(s);
+const PT_LABEL = {
+  'Randomized Controlled Trial':'隨機對照試驗','Systematic Review':'系統性回顧','Meta-Analysis':'統合分析',
+  'Practice Guideline':'臨床指引','Guideline':'指引','Review':'回顧','Clinical Trial':'臨床試驗',
+  'Clinical Trial, Phase III':'第三期臨床試驗','Case Reports':'病例報告','Observational Study':'觀察性研究',
+  'Comparative Study':'比較研究','Multicenter Study':'多中心研究','Editorial':'社論','Letter':'讀者投書',
+  'Comment':'評論','Consensus Development Conference':'共識會議'
+};
+const LANG = { chi:'中文', jpn:'日文', kor:'韓文', fre:'法文', ger:'德文', spa:'西班牙文', por:'葡萄牙文', ita:'義大利文', rus:'俄文' };
+
+const S = { pubmed:null, ai:null, pmProbe:null, aiProbe:null, mode:'direct',
+            question:'', term:'', retstart:0, count:0, records:[], translation:null };
+
+/* ---------- 圖書館連結 ---------- */
+function viaLibrary(url){
+  const u = new URL(url);
+  return 'https://' + u.hostname.replace(/\./g,'-') + '.' + CONFIG.library.proxyHost + u.pathname + u.search;
+}
+function libraryLink(rec){
+  const pm  = 'https://pubmed.ncbi.nlm.nih.gov/' + rec.pmid + '/';
+  const doi = rec.doi ? 'https://doi.org/' + rec.doi : null;
+  switch (CONFIG.library.fulltextMode){
+    case 'doi':       return viaLibrary(doi || pm);
+    case 'login-url': return 'https://' + CONFIG.library.proxyHost + '/login?url=' + encodeURIComponent(doi || pm);
+    default:          return viaLibrary(pm);
+  }
+}
+
+/* ---------- PubMed E-utilities ---------- */
+function eutil(name, params){
+  const u = new URL('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/' + name + '.fcgi');
+  const all = Object.assign({}, params, { tool: CONFIG.ncbi.tool });
+  if (CONFIG.ncbi.email)  all.email   = CONFIG.ncbi.email;
+  if (CONFIG.ncbi.apiKey) all.api_key = CONFIG.ncbi.apiKey;
+  Object.entries(all).forEach(([k,v]) => u.searchParams.set(k, v));
+  return u.toString();
+}
+async function esearch(term, retstart){
+  const r = await fetch(eutil('esearch', { db:'pubmed', term, retmax:CONFIG.pageSize, retstart, retmode:'json', sort:$('#sort').value }));
+  if (!r.ok) throw new Error('PubMed 回應 ' + r.status);
+  const e = (await r.json()).esearchresult;
+  if (!e) throw new Error('PubMed 回傳格式異常');
+  if (e.ERROR) throw new Error('PubMed：' + e.ERROR);
+  return { count: +e.count || 0, ids: e.idlist || [], translation: e.querytranslation || '',
+           notFound: (e.errorlist && e.errorlist.phrasesnotfound) || [] };
+}
+async function efetch(ids){
+  const r = await fetch(eutil('efetch', { db:'pubmed', id: ids.join(','), retmode:'xml', rettype:'abstract' }));
+  if (!r.ok) throw new Error('PubMed 回應 ' + r.status);
+  return parseEfetch(await r.text());
+}
+function parseEfetch(xml){
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  return [...doc.querySelectorAll('PubmedArticle')].map(a => {
+    const q  = (sel, root = a) => root.querySelector(sel);
+    const qa = (sel, root = a) => [...root.querySelectorAll(sel)];
+    const art = q('MedlineCitation > Article') || a;
+    const pubDate = q('Journal > JournalIssue > PubDate', art);
+    let year = pubDate && pubDate.querySelector('Year') ? pubDate.querySelector('Year').textContent : '';
+    if (!year && pubDate) year = ((pubDate.textContent || '').match(/\d{4}/) || [''])[0];
+    const ids = {};
+    qa('PubmedData > ArticleIdList > ArticleId').forEach(id => { ids[id.getAttribute('IdType')] = id.textContent.trim(); });
+    return {
+      pmid: (q('MedlineCitation > PMID') || {}).textContent?.trim() || ids.pubmed || '',
+      title: (q('ArticleTitle', art) || {}).textContent?.trim() || '(無標題)',
+      journal: (q('Journal > ISOAbbreviation', art) || q('Journal > Title', art) || {}).textContent || '',
+      year,
+      volume: (q('Journal > JournalIssue > Volume', art) || {}).textContent || '',
+      issue:  (q('Journal > JournalIssue > Issue', art)  || {}).textContent || '',
+      pages:  (q('Pagination > MedlinePgn', art) || {}).textContent || '',
+      authors: qa('AuthorList > Author', art).map(au => {
+        const coll = au.querySelector('CollectiveName'); if (coll) return coll.textContent.trim();
+        const ln = au.querySelector('LastName'), ini = au.querySelector('Initials');
+        return ((ln ? ln.textContent : '') + ' ' + (ini ? ini.textContent : '')).trim();
+      }).filter(Boolean),
+      abstractParts: qa('Abstract > AbstractText', art).map(t => ({ label: t.getAttribute('Label') || '', text: t.textContent.trim() })).filter(p => p.text),
+      pubtypes: qa('PublicationTypeList > PublicationType', art).map(t => t.textContent),
+      lang: qa('Language', art).map(l => l.textContent),
+      doi: ids.doi || '', pmc: ids.pmc || '',
+      mesh: qa('MeshHeadingList > MeshHeading > DescriptorName').slice(0, 6).map(d => d.textContent)
+    };
+  });
+}
+function order(recs, ids){ const m = new Map(recs.map(r => [r.pmid, r])); return ids.map(id => m.get(id)).filter(Boolean); }
+
+/* ---------- 檢索式組合 ---------- */
+function applyFilters(base){
+  const parts = ['(' + base.trim() + ')'];
+  const yrs = +$('#yr').value;
+  if (yrs) {
+    const d = new Date(); d.setFullYear(d.getFullYear() - yrs);
+    const from = d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+    parts.push(from + ':3000/12/31[dp]');
+  }
+  if ($('#pt').value) parts.push($('#pt').value);
+  if ($('#humans').checked) parts.push('humans[mh]');
+  if ($('#free').checked) parts.push('free full text[sb]');
+  return parts.join(' AND ');
+}
+
+/* ---------- Claude API（僅在可連線的環境啟用） ---------- */
+async function claude(system, user, opts = {}){
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), opts.timeout || 90000);
+  try {
+    const body = { model: CONFIG.ai.model, max_tokens: 1000, system, messages: [{ role:'user', content:user }] };
+    if (opts.tools) body.tools = opts.tools;
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
+    if (!r.ok) throw new Error('AI 服務回應 ' + r.status);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error.message || 'AI 服務錯誤');
+    return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Error('AI 服務逾時，請再試一次');
+    throw e;
+  } finally { clearTimeout(t); }
+}
+function extractJSON(text){
+  const clean = text.replace(/```(?:json)?/gi, '').trim();
+  try { return JSON.parse(clean); } catch (e) {}
+  for (const [o, c] of [['[', ']'], ['{', '}']]) {
+    const a = clean.indexOf(o), b = clean.lastIndexOf(c);
+    if (a >= 0 && b > a) { try { return JSON.parse(clean.slice(a, b + 1)); } catch (e) {} }
+  }
+  // 若輸出被截斷，保留最後一筆完整的物件
+  const a = clean.indexOf('['), b = clean.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(clean.slice(a, b + 1) + ']'); } catch (e) {} }
+  throw new Error('無法解析 AI 回傳的內容');
+}
+const SYS_TRANSLATE = `你是醫學圖書館的檢索專家。把使用者的臨床問題轉成一條 PubMed 檢索式（英文）：
+- 拆出 2–4 個核心概念，每個概念以 MeSH 詞（[mh]）加上自由詞同義詞（[tiab]）用 OR 併列，概念之間用 AND 連接。
+- 檢索式要能實際查到文獻：不要過度限縮，不要加入日期、文獻類型、語言或 humans 限制（介面會另外加）。
+- 檢索式寫在同一行，不要換行。
+只回傳 JSON（不要 markdown 圍欄、不要其他文字）：
+{"query":"...","concepts":["概念一：英文詞","概念二：英文詞"],"note":"一句話（繁體中文）說明檢索策略"}`;
+const SYS_SUMMARIZE = `你是實證醫學圖書館員。使用者會給你一個問題，以及一份有編號的文獻清單（含摘要）。
+請只根據這些摘要，用繁體中文寫一段 150–250 字的重點整理：
+- 每個陳述句都必須以 [編號] 標注來源，且只能引用清單中存在的編號。
+- 不得加入清單以外的資訊，不得推論摘要中沒有寫的結論；若證據彼此不一致要指出。
+- 最後另起一行寫「最相關：[編號], [編號]」。
+純文字，不用 markdown。`;
+const SYS_WEB = `你是醫學圖書館員的檢索助理。請用 web_search 工具在 PubMed（pubmed.ncbi.nlm.nih.gov）搜尋與使用者問題相關的文獻，可用英文檢索詞搜尋 2–3 次。
+只回傳 JSON 陣列（不要 markdown 圍欄、不要其他文字）：
+[{"pmid":"12345678","title":"...","journal":"...","year":"2024","authors":"Smith A, Lee B","pubtype":"Randomized Controlled Trial","doi":"10.xxxx/xxxx 或 null","why":"一句話（繁體中文，30 字內）說明與問題的關聯"}]
+規則：
+- 只能列出你在搜尋結果中實際看到、網址為 pubmed.ncbi.nlm.nih.gov/<PMID>/ 的文獻，pmid 必須來自該網址。
+- 絕不可捏造或猜測 PMID、標題、作者、DOI；不確定的欄位填 null。
+- 最多 8 筆，依相關性排序。`;
+
+async function aiTranslate(question){
+  const j = extractJSON(await claude(SYS_TRANSLATE, question, { timeout: 40000 }));
+  if (!j || !j.query) throw new Error('AI 沒有給出檢索式');
+  return { query: String(j.query).replace(/\s+/g, ' ').trim(), concepts: Array.isArray(j.concepts) ? j.concepts : [], note: j.note || '' };
+}
+async function aiWebFallback(question, term){
+  const text = await claude(SYS_WEB, '問題：' + question + '\n可參考的英文檢索詞：' + term,
+                            { tools: [{ type:'web_search_20250305', name:'web_search', max_uses: 3 }] });
+  const arr = extractJSON(text);
+  if (!Array.isArray(arr)) throw new Error('AI 回傳格式異常');
+  const seen = new Set();
+  return arr.filter(x => x && /^\d{1,9}$/.test(String(x.pmid || '')) && !seen.has(String(x.pmid)) && seen.add(String(x.pmid)))
+    .map(x => ({ pmid: String(x.pmid), title: x.title || '(標題未取得，請點 PubMed 查看)', journal: x.journal || '', year: x.year ? String(x.year) : '',
+                 authors: typeof x.authors === 'string' ? x.authors.split(/,\s*/) : (Array.isArray(x.authors) ? x.authors : []),
+                 pubtypes: x.pubtype ? [x.pubtype] : [], doi: (x.doi && /^10\./.test(x.doi)) ? x.doi : '', pmc: '',
+                 abstractParts: [], mesh: [], why: x.why || '', fromWeb: true }));
+}
+
+/* ---------- 畫面 ---------- */
+function paintPills(){
+  const p = $('#pill-pubmed'), a = $('#pill-ai');
+  p.className = 'pill ' + (S.pubmed === null ? '' : S.pubmed ? 'ok' : 'off');
+  p.innerHTML = '<i></i>' + (S.pubmed === null ? 'PubMed 連線檢查中' : S.pubmed ? 'PubMed 直連' : 'PubMed 直連受限');
+  p.title = S.pubmed === false ? '此環境封鎖了對 PubMed 的直接連線。將本頁下載後直接以瀏覽器開啟，或部署到院內網站即可直連。' : '結果直接來自 NCBI PubMed 資料庫';
+  a.className = 'pill ' + (S.ai === null ? '' : S.ai ? 'ok' : 'off');
+  a.innerHTML = '<i></i>' + (S.ai === null ? 'AI 助理檢查中' : S.ai ? 'AI 助理可用' : 'AI 助理未啟用');
+  a.title = S.ai ? 'AI 可協助轉換檢索式與整理摘要' : '此環境未連上 AI 服務；仍可直接以英文檢索 PubMed';
+  $('#ai-opt').hidden = !S.ai;
+}
+function setBusy(on, msg){
+  $('#go').disabled = on; $('#more').disabled = on; $('#rerun').disabled = on;
+  const st = $('#status'); st.className = '';
+  st.innerHTML = on ? '<span class="spin" aria-hidden="true"></span>' + esc(msg || '處理中…') : '';
+}
+function showStatus(msg, kind){ const st = $('#status'); st.className = kind || ''; st.textContent = msg; }
+function showHint(msg){ const h = $('#hint'); h.textContent = msg; h.hidden = false; }
+function hideHint(){ $('#hint').hidden = true; }
+
+function paintLedger(es){
+  $('#ledger').hidden = false;
+  $('#term').value = S.term;
+  $('#count').textContent = S.count ? '共 ' + S.count.toLocaleString() + ' 筆，已載入 ' + (S.records.length + (es ? es.ids.length : 0)) + ' 筆' : '共 0 筆';
+  const pmUrl = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(S.term) + '&sort=' + ($('#sort').value === 'pub_date' ? 'date' : 'relevance');
+  $('#open-pubmed').href = pmUrl; $('#open-pubmed-lib').href = viaLibrary(pmUrl);
+  const st = $('#strategy');
+  if (S.translation) {
+    st.hidden = false;
+    st.innerHTML = 'AI 的檢索策略：' + esc(S.translation.note) + (S.translation.concepts.length ? '<ul>' + S.translation.concepts.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' : '');
+  } else st.hidden = true;
+  const nf = $('#notfound');
+  if (es && es.notFound.length) { nf.hidden = false; nf.textContent = 'PubMed 找不到這些詞，已被忽略：' + es.notFound.join('、') + '。可改用同義詞或英文再試。'; }
+  else nf.hidden = true;
+  const tb = $('#translation-box');
+  if (es && es.translation) { tb.hidden = false; $('#translation').textContent = es.translation; } else tb.hidden = true;
+}
+function paintLedgerWeb(n){
+  $('#ledger').hidden = false; $('#term').value = S.term;
+  $('#count').textContent = 'AI 網頁檢索找到 ' + n + ' 筆';
+  const pmUrl = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(S.term);
+  $('#open-pubmed').href = pmUrl; $('#open-pubmed-lib').href = viaLibrary(pmUrl);
+  $('#strategy').hidden = false;
+  $('#strategy').textContent = '此環境無法直接連線 PubMed 資料庫，改由 AI 以網頁搜尋 PubMed 取得下列文獻；每筆都可點 PubMed 核對。想要完整的資料庫查詢與摘要，請將本頁下載後直接開啟。';
+  $('#notfound').hidden = true; $('#translation-box').hidden = true;
+}
+
+function citeLine(rec){
+  const au = rec.authors || []; let a = au.slice(0, 3).join(', '); if (au.length > 3) a += ', et al';
+  const j = [rec.journal, rec.year].filter(Boolean).join('. ');
+  return [a, j].filter(Boolean).join('. ') + (j ? '.' : '');
+}
+function vancouver(rec){
+  const au = rec.authors || []; let a = au.slice(0, 6).join(', '); if (au.length > 6) a += ', et al';
+  let s = a ? a + '. ' : '';
+  s += rec.title.replace(/\.$/, '') + '. ' + (rec.journal || '') + '. ' + (rec.year || '');
+  if (rec.volume) { s += ';' + rec.volume; if (rec.issue) s += '(' + rec.issue + ')'; if (rec.pages) s += ':' + rec.pages; }
+  s += '.'; if (rec.doi) s += ' doi:' + rec.doi; s += ' PMID: ' + rec.pmid + '.';
+  return s.replace(/\s+/g, ' ');
+}
+function recHTML(rec){
+  const pm = 'https://pubmed.ncbi.nlm.nih.gov/' + rec.pmid + '/';
+  const tags = [];
+  (rec.pubtypes || []).filter(t => PT_LABEL[t]).slice(0, 3).forEach(t => tags.push('<span class="tag">' + esc(PT_LABEL[t]) + '</span>'));
+  if (rec.fromWeb && rec.pubtypes && rec.pubtypes[0] && !PT_LABEL[rec.pubtypes[0]]) tags.push('<span class="tag">' + esc(rec.pubtypes[0]) + '</span>');
+  if (rec.pmc) tags.push('<span class="tag free">PMC 免費全文</span>');
+  if (rec.lang && rec.lang[0] && rec.lang[0] !== 'eng') tags.push('<span class="tag">' + esc(LANG[rec.lang[0]] || rec.lang[0]) + '</span>');
+  if (rec.fromWeb) tags.push('<span class="tag warn">AI 網頁檢索結果，請點 PubMed 核對</span>');
+  tags.push('<span class="tag id">PMID ' + esc(rec.pmid) + '</span>');
+  if (rec.doi) tags.push('<span class="tag id">DOI ' + esc(rec.doi) + '</span>');
+  const hasAbs = rec.abstractParts && rec.abstractParts.length;
+  const acts = [
+    '<a class="btn lib" target="_blank" rel="noopener" href="' + esc(libraryLink(rec)) + '">圖書館全文</a>',
+    '<a class="btn" target="_blank" rel="noopener" href="' + esc(pm) + '">PubMed</a>',
+    rec.pmc ? '<a class="btn" target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/' + esc(rec.pmc) + '/">PMC 免費全文</a>' : '',
+    hasAbs ? '<button type="button" class="btn ghost" data-act="abs" aria-expanded="false">摘要</button>' : '',
+    '<button type="button" class="btn ghost" data-act="cite">複製引用</button>'
+  ].filter(Boolean).join('');
+  const abs = hasAbs ? '<div class="abs">' + rec.abstractParts.map(p => (p.label ? '<b>' + esc(p.label) + '：</b>' : '') + esc(p.text)).join('<br>') +
+              (rec.mesh && rec.mesh.length ? '<div class="mesh">MeSH：' + rec.mesh.map(esc).join('；') + '</div>' : '') + '</div>' : '';
+  return '<div class="n">' + rec.n + '</div><div class="body">' +
+    '<h3><a target="_blank" rel="noopener" href="' + esc(pm) + '">' + esc(rec.title) + '</a></h3>' +
+    '<p class="cite">' + esc(citeLine(rec)) + '</p>' +
+    (rec.why ? '<p class="why">' + esc(rec.why) + '</p>' : '') +
+    '<div class="tags">' + tags.join('') + '</div><div class="acts">' + acts + '</div>' + abs + '</div>';
+}
+function renderRecords(recs, start){
+  const ol = $('#results');
+  recs.forEach((rec, i) => {
+    rec.n = start + i + 1;
+    const li = document.createElement('li'); li.className = 'rec'; li.id = 'rec-' + rec.n; li.dataset.i = start + i;
+    li.innerHTML = recHTML(rec); ol.appendChild(li);
+  });
+  $('#firstnote').hidden = ol.children.length === 0;
+}
+function rerenderAll(){ [...$('#results').children].forEach((li, i) => { const r = S.records[i]; if (r) li.innerHTML = recHTML(r); }); }
+function emptyState(es){
+  const li = document.createElement('li'); li.className = 'empty';
+  li.innerHTML = '沒有符合的文獻。可以試試：<ul><li>放寬年份或文獻類型的限制</li><li>減少關鍵詞，或改用同義詞、英文詞</li>' +
+    (hasCJK(S.term) ? '<li>PubMed 只能以英文檢索，中文詞會查不到' + (S.ai ? '；勾選「先請 AI 轉成英文檢索式」再試' : '') + '</li>' : '') +
+    '<li>直接編輯上方檢索式後重新查找</li></ul>';
+  $('#results').appendChild(li);
+}
+function paintAIPanel(){
+  const withAbs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, 10);
+  const show = S.ai && S.mode === 'direct' && withAbs.length > 0;
+  $('#aipanel').hidden = !show;
+  if (!show) return;
+  $('#ai-scope').textContent = '只依據目前載入的前 ' + withAbs.length + ' 筆有摘要的文獻；不會加入清單以外的內容。';
+}
+async function aiSummarize(){
+  const recs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, 10);
+  const valid = new Set(recs.map(r => r.n));
+  const list = recs.map(r => '[' + r.n + '] ' + r.title + '（' + [r.journal, r.year].filter(Boolean).join(', ') + '）\n摘要：' +
+    r.abstractParts.map(p => (p.label ? p.label + ': ' : '') + p.text).join(' ').slice(0, 900)).join('\n\n');
+  const btn = $('#summarize'); btn.disabled = true; btn.textContent = 'AI 整理中…';
+  try {
+    const text = await claude(SYS_SUMMARIZE, '問題：' + (S.question || S.term) + '\n\n文獻清單：\n' + list);
+    const html = esc(text).replace(/\[(\d+)\]/g, (m, n) => valid.has(+n) ? '<a href="#rec-' + n + '">[' + n + ']</a>' : '').replace(/\n/g, '<br>');
+    $('#ai-sum').innerHTML = html; $('#ai-sum').hidden = false; $('#ai-disc').hidden = false; $('#ai-action').hidden = true;
+  } catch (e) {
+    btn.disabled = false; btn.textContent = '再試一次'; showStatus('AI 整理失敗：' + e.message, 'error');
+  }
+}
+
+/* ---------- 主流程 ---------- */
+async function search(opts = {}){
+  const fresh = opts.fresh !== false, rawTerm = opts.rawTerm || null;
+  const question = $('#q').value.trim();
+  if (fresh && !rawTerm && !question) { $('#q').focus(); return; }
+  setBusy(true, '正在準備檢索式…');
+  try {
+    await Promise.all([S.pmProbe, S.aiProbe]);
+    if (fresh) {
+      S.records = []; S.retstart = 0; S.count = 0; S.translation = null;
+      $('#results').innerHTML = ''; $('#aipanel').hidden = true; $('#more-wrap').hidden = true; $('#firstnote').hidden = true;
+      $('#ai-sum').hidden = true; $('#ai-disc').hidden = true; $('#ai-action').hidden = false;
+      $('#summarize').disabled = false; $('#summarize').textContent = '請 AI 整理重點（只依據上列文獻的摘要）';
+      hideHint();
+      if (rawTerm) { S.term = rawTerm; if (!S.question) S.question = question; }
+      else {
+        S.question = question; let base = question;
+        if (S.ai && $('#useai').checked) {
+          setBusy(true, 'AI 正在把問題轉成 PubMed 檢索式…');
+          try { S.translation = await aiTranslate(question); base = S.translation.query; }
+          catch (e) { showHint('AI 轉換檢索式失敗（' + e.message + '），改用你輸入的原文查詢。'); }
+        } else if (hasCJK(question) && S.pubmed !== false) {
+          showHint('PubMed 只能用英文檢索。請改用英文關鍵詞（例：hip fracture delirium prevention）；在可用 AI 的環境開啟本頁時，AI 可代為轉換。');
+        }
+        S.term = applyFilters(base);
+      }
+    }
+    // 1. 直接查 PubMed 資料庫
+    if (S.pubmed !== false) {
+      setBusy(true, '正在查詢 PubMed…');
+      try {
+        const es = await esearch(S.term, S.retstart);
+        S.pubmed = true; S.mode = 'direct'; S.count = es.count; paintPills();
+        paintLedger(es);
+        if (es.ids.length) {
+          setBusy(true, '正在取得 ' + es.ids.length + ' 筆書目與摘要…');
+          const recs = order(await efetch(es.ids), es.ids);
+          renderRecords(recs, S.records.length); S.records.push(...recs); S.retstart += es.ids.length;
+        } else if (!S.records.length) emptyState(es);
+        $('#more-wrap').hidden = !(S.retstart < S.count);
+        paintAIPanel();
+        return;
+      } catch (e) {
+        if (!(e instanceof TypeError)) throw e;   // 真正的查詢錯誤照常顯示
+        S.pubmed = false; paintPills();             // 連線被環境封鎖 → 改用備援
+      }
+    }
+    if (!fresh) return;
+    // 2. 備援：AI 以網頁搜尋 PubMed（受限環境）
+    if (S.ai !== false) {
+      setBusy(true, 'PubMed 直連受限，改由 AI 以網頁搜尋 PubMed（約 20–40 秒）…');
+      try {
+        const recs = await aiWebFallback(S.question || question, S.term);
+        S.ai = true; S.mode = 'web'; paintPills(); paintLedgerWeb(recs.length);
+        S.records = recs; renderRecords(recs, 0);
+        if (!recs.length) emptyState();
+        return;
+      } catch (e) { if (e instanceof TypeError) { S.ai = false; paintPills(); } else throw e; }
+    }
+    throw new Error('此環境無法連線 PubMed，也無法使用 AI 助理。請將本頁下載後直接以瀏覽器開啟，或部署到院內網站，即可直連 PubMed 查詢。');
+  } catch (e) { showStatus(e.message || String(e), 'error'); return; }
+  finally { if (!$('#status').classList.contains('error')) setBusy(false); else { $('#go').disabled = false; $('#more').disabled = false; $('#rerun').disabled = false; } }
+}
+
+/* ---------- 啟動與事件 ---------- */
+async function probePubMed(){
+  try { const r = await fetch(eutil('esearch', { db:'pubmed', term:'aspirin', retmax:0, retmode:'json' })); if (!r.ok) throw 0; await r.json(); S.pubmed = true; }
+  catch (e) { S.pubmed = false; }
+  paintPills();
+}
+async function probeAI(){
+  try { await claude('只回覆 ok', 'ok', { timeout: 15000 }); S.ai = true; } catch (e) { S.ai = false; }
+  paintPills();
+}
+async function copyText(t){
+  try { await navigator.clipboard.writeText(t); return true; }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+              let ok = false; try { ok = document.execCommand('copy'); } catch (_) {} ta.remove(); return ok; }
+}
+
+$('#go').addEventListener('click', () => search({ fresh: true }));
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); search({ fresh: true }); } });
+$('#more').addEventListener('click', () => search({ fresh: false }));
+$('#rerun').addEventListener('click', () => { const t = $('#term').value.trim(); if (t) search({ fresh: true, rawTerm: t }); });
+$('#summarize').addEventListener('click', aiSummarize);
+document.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => { $('#q').value = b.textContent; search({ fresh: true }); }));
+$('#results').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-act]'); if (!btn) return;
+  const li = btn.closest('li.rec'); const rec = S.records[+li.dataset.i]; if (!rec) return;
+  if (btn.dataset.act === 'abs') { const box = li.querySelector('.abs'); const open = box.classList.toggle('open'); btn.setAttribute('aria-expanded', open); btn.textContent = open ? '收合摘要' : '摘要'; }
+  if (btn.dataset.act === 'cite') { const ok = await copyText(vancouver(rec)); const old = btn.textContent; btn.textContent = ok ? '已複製' : '無法複製'; setTimeout(() => btn.textContent = old, 1600); }
+});
+document.querySelectorAll('input[name=ftmode]').forEach(r => r.addEventListener('change', () => { CONFIG.library.fulltextMode = r.value; rerenderAll(); }));
+$('#set-key').addEventListener('input', e => CONFIG.ncbi.apiKey = e.target.value.trim());
+$('#set-email').addEventListener('input', e => CONFIG.ncbi.email = e.target.value.trim());
+$('#set-size').addEventListener('change', e => CONFIG.pageSize = +e.target.value);
+document.querySelector('input[name=ftmode][value="' + CONFIG.library.fulltextMode + '"]').checked = true;
+$('#login-link').href = CONFIG.library.loginUrl;
+
+S.pmProbe = probePubMed();
+S.aiProbe = probeAI();
+</script>
+</body>
+</html>
