@@ -338,7 +338,10 @@ const CONFIG = {
   holdingsUrl: 'holdings.csv',   // 館藏期刊清單（與 index.html 同資料夾）；沒有這個檔也能正常運作
   ebsco: { db: 'mnh' },
   // Ovid 期刊：用 Ovid 的 Jumpstart 以 DOI 直達單篇，並經圖書館代理以醫院 IP 認證（ERM 自己的 Ovid 連結不經代理，院外會被要求登入）
-  ovid: { enabled: true, base: 'https://ovidsp.ovid.com/ovidweb.cgi' },          // 「MEDLINE電子期刊」= EBSCOhost。資料庫代碼：mnh = MEDLINE with Full Text、mdc = MEDLINE Complete、cmedm = MEDLINE
+  ovid: { enabled: true, base: 'https://ovidsp.ovid.com/ovidweb.cgi' },
+  // Elsevier 期刊：ScienceDirect 經代理無法正常開啟（它對代理極挑剔），而本院 Elsevier 期刊主要訂在 ClinicalKey，
+  // 所以 Elsevier 文章一律改走 ClinicalKey（用 PII 直達單篇）；只有館藏清單明確標示 ScienceDirect 的期刊才走 ScienceDirect。
+  elsevier: { via: 'clinicalkey' },          // 「MEDLINE電子期刊」= EBSCOhost。資料庫代碼：mnh = MEDLINE with Full Text、mdc = MEDLINE Complete、cmedm = MEDLINE
   // 各平台的登入方式說明。本頁「絕對不」存放任何帳號密碼：共用帳密只存在於 ERM 的資料庫簡介（需登入 ERM 才看得到），這裡只放 ERM 的 dbid 與提示文字。
   platforms: [
     { match: /medline|ebsco/i,   name: 'EBSCO MEDLINE',   dbid: 'LDB0074', cred: 'shared',   tip: '若出現 Select Resource 請選 EBSCOhost Research Databases；院外若被要求登入，共用帳密在' },
@@ -401,6 +404,10 @@ const ermDetailLink = p => (p && p.dbid && CONFIG.library.ermDetailUrl) ? CONFIG
 // EBSCO MEDLINE 的單篇連結：Accession Number 就是 PMID
 const ebscoArticleUrl = rec => 'https://search.ebscohost.com/login.aspx?direct=true&db=' + encodeURIComponent(CONFIG.ebsco.db) + '&AN=' + encodeURIComponent(rec.pmid) + '&site=ehost-live&scope=site';
 const wrapSync = url => CONFIG.library.fulltextMode === 'direct' ? url : CONFIG.library.fulltextMode === 'publisher' ? viaLibrary(url) : loginUrlFor(url);
+// Elsevier 的 DOI 前綴（10.1016 為主；其餘為 Elsevier 旗下舊前綴）
+const isElsevierDoi = doi => /^10\.(1016|1053|1054|1067|1078|1157|1529|3816)\//i.test(doi || '');
+// 這筆是否要改走 ClinicalKey：Elsevier 文章、設定為經 ClinicalKey、且館藏清單沒有明確說它在 ScienceDirect
+const elsevierViaCK = (rec, route) => CONFIG.elsevier.via === 'clinicalkey' && !!rec.doi && isElsevierDoi(rec.doi) && route.kind === 'article' && !(route.entry && /sciencedirect/i.test(route.entry.note || ''));
 // Ovid Jumpstart：在 Journals@Ovid（D=ovft）以 DOI 欄位（.do）搜尋並直接顯示全文
 const ovidArticleUrl = rec => CONFIG.ovid.base + '?T=JS&MODE=ovid&NEWS=n&CSC=Y&PAGE=fulltext&D=ovft&SEARCH=%22' + encodeURIComponent(rec.doi) + '%22.do';
 // 同一刊在多個平台時的優先順序：出版社網站（單篇可直達）→ ClinicalKey（PII 直達）→ EBSCO MEDLINE（PMID 直達）→ 其他集成平台
@@ -478,9 +485,12 @@ async function fulltextTarget(rec, forceArticle){
   const pub = await resolveDOI(rec.doi);
   const doiUrl = 'https://doi.org/' + rec.doi;
   const wrap = t => CONFIG.library.fulltextMode === 'publisher' ? viaLibrary(t) : loginUrlFor(t);
-  if (r.kind === 'clinicalkey') {   // Elsevier 期刊經 ClinicalKey 訂閱：用 PII 直達單篇
-    const m = pub && pub.match(/sciencedirect\.com\/science\/article\/pii\/([A-Za-z0-9]+)/);
-    return m ? wrap('https://www.clinicalkey.com/#!/content/playContent/1-s2.0-' + m[1]) : ermJournalLink(r.entry);
+  const pii = pub && (pub.match(/sciencedirect\.com\/science\/article\/pii\/([A-Za-z0-9]+)/) || [])[1];
+  if (r.kind === 'clinicalkey') {   // 館藏清單說本刊在 ClinicalKey：用 PII 直達單篇
+    return pii ? wrap('https://www.clinicalkey.com/#!/content/playContent/1-s2.0-' + pii) : ermJournalLink(r.entry);
+  }
+  if (!forceArticle && pii && elsevierViaCK(rec, r)) {   // 其他 Elsevier 文章也改走 ClinicalKey（ScienceDirect 經代理開不了）
+    return wrap('https://www.clinicalkey.com/#!/content/playContent/1-s2.0-' + pii);
   }
   if (CONFIG.library.fulltextMode === 'login-url') return loginUrlFor(pub || doiUrl);
   return pub ? viaLibrary(pub) : doiUrl;
@@ -841,7 +851,7 @@ function recHTML(rec){
   if (rec.pmc) tags.push('<span class="tag free">PMC 免費全文</span>');
   if (rec.lang && rec.lang[0] && rec.lang[0] !== 'eng') tags.push('<span class="tag">' + esc(LANG[rec.lang[0]] || rec.lang[0]) + '</span>');
   if (rec.fromWeb) tags.push('<span class="tag warn">AI 網頁檢索結果，請點 PubMed 核對</span>');
-  const route = routeFor(rec); const h = route.h;
+  const route = routeFor(rec); const h = route.h; const viaCK = elsevierViaCK(rec, route);
   if (h && !isOA(rec)) {
     if (h.status === 'yes') tags.push('<span class="tag ok">館藏訂閱' + (h.range ? '（' + esc(h.range) + '）' : '') + (platformName(h.entry) ? '：' + esc(platformName(h.entry)) : '') + '</span>');
     else if (h.status === 'partial') tags.push('<span class="tag warn">訂閱範圍 ' + esc(h.range) + '，本文 ' + esc(rec.year) + ' 年不在範圍內</span>');
@@ -856,17 +866,17 @@ function recHTML(rec){
     : route.kind === 'erm' ? '圖書館全文（' + esc(platformName(route.entry)) + '）'
     : route.kind === 'ebsco' ? '圖書館全文（EBSCO）'
     : route.kind === 'ovid' ? '圖書館全文（Ovid）'
-    : route.kind === 'clinicalkey' ? '圖書館全文（ClinicalKey）' : '圖書館全文';
+    : route.kind === 'clinicalkey' || viaCK ? '圖書館全文（ClinicalKey）' : '圖書館全文';
   const primaryTitle = isOA(rec) ? '免費文章，直接開啟出版社網頁'
     : h && h.status === 'no' ? '此刊不在館藏清單，仍可試試（可能會顯示未訂閱）'
     : route.kind === 'erm' ? '由 ERM 開啟 ' + platformName(route.entry) + ' 上的本刊（ERM 會處理登入），再在平台內找這一篇'
     : route.kind === 'ebsco' ? '經圖書館代理直接開啟 EBSCO MEDLINE 上的這一篇（以 PMID 定位）'
     : route.kind === 'ovid' ? '經圖書館代理直接開啟 Ovid 上的這一篇（以 DOI 定位）'
-    : route.kind === 'clinicalkey' ? '經圖書館代理直接開啟 ClinicalKey 上的這一篇'
+    : route.kind === 'clinicalkey' || viaCK ? '經圖書館代理直接開啟 ClinicalKey 上的這一篇（Elsevier 期刊本院訂在 ClinicalKey）'
     : needsResolve(rec) ? '先解析 DOI，再經由圖書館代理引擎開啟出版社網頁' : '';
   const acts = [
     '<a class="btn lib' + (h && h.status !== 'yes' && !isOA(rec) ? ' soft' : '') + '" data-route="primary" target="_blank" rel="noopener" href="' + esc(fulltextHref(rec)) + '" title="' + esc(primaryTitle) + '">' + primaryLabel + '</a>',
-    (route.kind === 'erm' || route.kind === 'clinicalkey' || route.kind === 'ebsco' || route.kind === 'ovid') && rec.doi ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改走出版社網站（經圖書館代理；若圖書館只訂集成平台，可能顯示未訂閱）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '',
+    (route.kind === 'erm' || route.kind === 'clinicalkey' || route.kind === 'ebsco' || route.kind === 'ovid' || viaCK) && rec.doi ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改走出版社網站（經圖書館代理；若圖書館只訂集成平台，可能顯示未訂閱）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '',
     (route.kind === 'article' || route.kind === 'ovid') && route.entry && ermJournalLink(route.entry) && !isOA(rec) ? '<a class="btn lib soft" target="_blank" rel="noopener" title="由 ERM 開啟本刊所在平台（Ovid 的 ERM 連結不經代理，院外可能會要求登入）" href="' + esc(ermJournalLink(route.entry)) + '">從 ERM 開本刊</a>' : '',
     '<a class="btn" target="_blank" rel="noopener" href="' + esc(pm) + '">PubMed</a>',
     rec.pmc ? '<a class="btn" target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/' + esc(rec.pmc) + '/">PMC 免費全文</a>' : '',
