@@ -278,6 +278,7 @@
         <p><strong>為什麼要「啟用圖書館連線」？</strong>貴院的代理引擎是 HyProxy，它自己的登入畫面（HyProxy Login）不接受同仁的帳號密碼；正確的方式是登入 ERM 遠端系統後，由 ERM 開啟一個期刊，這時 HyProxy 才會記住這個瀏覽器已通過驗證。「啟用圖書館連線」就是替你做這件事（借用 ERM 內的 NEJM 連結）。狀態存在瀏覽器裡，所以換電腦、換瀏覽器或隔一段時間過期後，要再按一次。</p>
         <p><strong>「圖書館全文」怎麼連？</strong>圖書館的代理引擎（www.scmhem.org.tw 的 3001 埠）只代理有訂閱的出版平台，PubMed 與 doi.org 本身不在其中。所以本頁會先用 doi.org 與 Crossref 的公開 API 把 DOI 解析成出版社網址，再交給代理引擎的登入入口（login?url=）處理登入與轉址；經代理後的網址長得像 www-nejm-org.www.scmhem.org.tw:3001。免費文章（PMC 或開放取用出版社）會直接開啟出版社頁面。</p>
         <p><strong>為什麼有時會顯示「未訂閱」？</strong>代理引擎只認得「出版平台」，不知道圖書館在該平台上訂了哪些期刊，所以同一個網站上有的期刊能開、有的不能。若圖書館提供期刊清單（holdings.csv），本頁會用 ISSN 與刊名比對，直接標示「館藏訂閱」或「清單未列此刊」。拿不到的文章可用「免費版本」（OpenAlex／Unpaywall 找到的合法免費全文）或「館際合作」取得。</p>
+        <p><strong>點閱會算進院方的統計嗎？</strong>ERM 只統計經過它跳轉的點擊。所以本頁點「圖書館全文」時，會先在新分頁經 ERM 登記一次（有期刊資料就登記到該期刊，否則登記到該平台），兩三秒後再自動轉到文章；登記時 ERM 認的是你在該瀏覽器登入的帳號，所以要先「啟用圖書館連線」。免費版本、PMC、直接開 DOI 這些不經圖書館的連結，本來就不會計入。</p>
         <p><strong>有些資料庫要另外登入，怎麼辦？</strong>經過圖書館代理時，大多數平台會以醫院 IP 認證，不必再輸入帳密。少數平台例外：一種是要先在院內網路註冊個人帳號（如 ClinicalKey、DynaMed），一種是圖書館提供共用帳密（如 EBSCO、Cochrane）。本頁不會存放任何帳密，遇到這些平台只會提示，並附上 ERM 資料庫簡介的連結；共用帳密只在登入 ERM 之後才看得到，請不要把它們貼到本頁或任何公開網頁。</p>
         <p id="about-ai" hidden><strong>AI 只做兩件事。</strong>一是讀懂問題或臨床情境，歸納成 PICO 問題並轉成 PubMed 檢索式，檢索式與替代策略都完整顯示給你檢查、可自行修改；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。</p>
         <p><strong>要讓全院同仁使用？</strong>把這一個 HTML 檔放到院內網站或任何靜態網頁空間即可，不需要伺服器程式；直接用瀏覽器開啟檔案也能查詢。</p>
@@ -299,6 +300,7 @@
           <label class="field">先在本機試載一份清單看看效果（檔案不會上傳到任何地方）<input type="file" id="set-holdings" accept=".csv,.tsv,.txt"></label>
           <p class="small" id="holdings-status"></p>
         </fieldset>
+        <label class="chk" style="margin:0 0 12px"><input type="checkbox" id="set-count" checked> 開啟全文前先經 ERM 登記點閱（供院方統計用；每次多等約 2–3 秒）</label>
         <label class="field">EBSCO MEDLINE 資料庫代碼（「MEDLINE電子期刊」的單篇連結用；mnh = MEDLINE with Full Text、mdc = MEDLINE Complete、cmedm = MEDLINE）<input id="set-ebsco" value="mnh"></label>
         <label class="field">代理引擎埠號（ERM「出版社路徑」連結所導向的埠號；目前為 3001）<input id="set-port" inputmode="numeric" value="3001"></label>
         <label class="field">NCBI API key（選填，可提高查詢頻率上限）<input id="set-key" autocomplete="off"></label>
@@ -330,6 +332,8 @@ const CONFIG = {
     ermJournalUrl: 'https://www.scmhem.org.tw/scmherm/sendurl_api_v3.jsp?type=0&journal_id=',
     // ERM 的資料庫簡介頁（後面接 dbid）：需登入 ERM 才看得到，各平台的登入方式與共用帳密都放在那裡
     ermDetailUrl: 'https://www.scmhem.org.tw/scmherm/detail_source.jsp?esource_classify=databases&id=',
+    // ERM 的資料庫跳轉 API（後面接 dbid）：用於在 ERM 登記「資料庫」層級的點閱
+    ermDbUrl: 'https://www.scmhem.org.tw/scmherm/sendurl_api_v3.jsp?dbid=',
     fulltextMode: 'login-url' // 'login-url'：https://www.scmhem.org.tw:3001/login?url=出版社網址（代理標準入口，會自行處理登入與轉址）
                               // 'publisher'：直接改寫成 出版社主機-www.scmhem.org.tw:3001/…（需已在同一瀏覽器建立代理登入狀態）
                               // 'direct'   ：不經圖書館，直接開出版社（院內 IP 認證時可用）
@@ -341,7 +345,10 @@ const CONFIG = {
   ovid: { enabled: true, base: 'https://ovidsp.ovid.com/ovidweb.cgi' },
   // Elsevier 期刊：ScienceDirect 經代理無法正常開啟（它對代理極挑剔），而本院 Elsevier 期刊主要訂在 ClinicalKey，
   // 所以 Elsevier 文章一律改走 ClinicalKey（用 PII 直達單篇）；只有館藏清單明確標示 ScienceDirect 的期刊才走 ScienceDirect。
-  elsevier: { via: 'clinicalkey' },          // 「MEDLINE電子期刊」= EBSCOhost。資料庫代碼：mnh = MEDLINE with Full Text、mdc = MEDLINE Complete、cmedm = MEDLINE
+  elsevier: { via: 'clinicalkey' },
+  // 點閱統計：ERM 只會統計經過它 sendurl_api 的點擊。開啟後，點「圖書館全文」會先在新分頁經 ERM 登記一次
+  //（有 journal_id 就登記到該期刊，否則登記到該平台的資料庫），約 delay 毫秒後再自動轉到文章。關閉則直接開文章。
+  count: { via: 'erm', delay: 2500 },          // 「MEDLINE電子期刊」= EBSCOhost。資料庫代碼：mnh = MEDLINE with Full Text、mdc = MEDLINE Complete、cmedm = MEDLINE
   // 各平台的登入方式說明。本頁「絕對不」存放任何帳號密碼：共用帳密只存在於 ERM 的資料庫簡介（需登入 ERM 才看得到），這裡只放 ERM 的 dbid 與提示文字。
   platforms: [
     { match: /medline|ebsco/i,   name: 'EBSCO MEDLINE',   dbid: 'LDB0074', cred: 'shared',   tip: '若出現 Select Resource 請選 EBSCOhost Research Databases；院外若被要求登入，共用帳密在' },
@@ -413,6 +420,17 @@ const ovidArticleUrl = rec => CONFIG.ovid.base + '?T=JS&MODE=ovid&NEWS=n&CSC=Y&P
 // 同一刊在多個平台時的優先順序：出版社網站（單篇可直達）→ ClinicalKey（PII 直達）→ EBSCO MEDLINE（PMID 直達）→ 其他集成平台
 const platformRank = e => !isAggregator(e) ? 0 : /clinicalkey/i.test(e.note) ? 1 : /medline|ebsco|ovid/i.test(e.note) ? 2 : 3;
 const ermJournalLink = e => (e && e.jid && CONFIG.library.ermJournalUrl) ? CONFIG.library.ermJournalUrl + encodeURIComponent(e.jid) : '';
+// 供 ERM 登記點閱用的網址：優先期刊（journal_id），否則平台資料庫（dbid）；都沒有就回空字串
+function ermClickUrl(rec, route, pubUrl){
+  if (route.entry && route.entry.jid) return ermJournalLink(route.entry);
+  if (!CONFIG.library.ermDbUrl) return '';
+  let key = route.kind === 'ovid' ? 'ovid' : route.kind === 'ebsco' ? 'ebsco' : (route.kind === 'clinicalkey' || elsevierViaCK(rec, route)) ? 'clinicalkey' : '';
+  if (!key && route.entry && route.entry.note) key = route.entry.note;
+  if (!key && pubUrl) { const h = (() => { try { return new URL(pubUrl).hostname; } catch (e) { return ''; } })();
+    key = /wiley/.test(h) ? 'wiley' : /springer/.test(h) ? 'springer' : /sciencedirect/.test(h) ? 'sciencedirect' : /ovid/.test(h) ? 'ovid' : ''; }
+  const info = key ? CONFIG.platforms.find(p => p.match.test(key)) : null;
+  return info && info.dbid ? CONFIG.library.ermDbUrl + encodeURIComponent(info.dbid) : '';
+}
 // 決定「圖書館全文」主按鈕走哪條路：article（出版社文章經代理）| clinicalkey（ClinicalKey 單篇）| erm（ERM 開本刊）
 function routeFor(rec, forceArticle){
   const h = holdingFor(rec);
@@ -1045,17 +1063,24 @@ $('#results').addEventListener('click', async e => {
   const lib = e.target.closest('a.lib');
   if (lib && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && !lib.dataset.ready) {
     const rec = S.records[+lib.closest('li.rec').dataset.i]; const fa = lib.dataset.route === 'article';
-    if (rec && needsResolve(rec, fa)) {
+    const route = rec ? routeFor(rec, fa) : null;
+    const wantsResolve = !!rec && needsResolve(rec, fa);
+    const wantsPing = !!rec && !fa && !isOA(rec) && CONFIG.library.fulltextMode !== 'direct' && CONFIG.count.via === 'erm' && route.kind !== 'erm';
+    if (rec && (wantsResolve || wantsPing)) {
       e.preventDefault();
       // 一律先同步開新分頁（Safari 只允許在點擊當下開視窗），解析完再導向
-      const cached = doiCache.has(rec.doi);
-      const w = window.open('', '_blank');
-      if (w) { try { w.opener = null; } catch (_) {} }
-      if (w && !cached) { try { w.document.write('<!doctype html><meta charset="utf-8"><title>透過圖書館開啟全文</title><div style="font-family:sans-serif;padding:28px;max-width:60ch;color:#333;line-height:1.7"><p style="font-size:17px;margin:0 0 12px">正在解析 DOI 並透過圖書館開啟全文…</p><p style="margin:0;font-size:14px;color:#555">接下來若出現 <b>HyProxy Login</b> 畫面，代表這個瀏覽器還沒啟用圖書館連線：請關閉這一頁，回到查詢頁按「啟用圖書館連線」完成登入，再點一次連結。</p></div>'); } catch (_) {} }
-      const [url] = await Promise.all([fulltextTarget(rec, fa), new Promise(res => setTimeout(res, (cached || S.libClicks) ? 0 : 1800))]);
+      const cached = !rec.doi || doiCache.has(rec.doi);
+      const w = window.open('', '_blank');   // 不切斷 opener：登記點閱後還要再把這個分頁導到文章，切斷了就不能導
+      const showNote = w && (!cached || (wantsPing && !S.libClicks));
+      if (showNote) { try { w.document.write('<!doctype html><meta charset="utf-8"><title>透過圖書館開啟全文</title><div style="font-family:sans-serif;padding:28px;max-width:60ch;color:#333;line-height:1.7"><p style="font-size:17px;margin:0 0 12px">' + (wantsPing ? '先向圖書館系統登記這次點閱，再開啟全文…' : '正在解析 DOI 並透過圖書館開啟全文…') + '</p><p style="margin:0;font-size:14px;color:#555">接下來若出現 <b>HyProxy Login</b> 畫面，代表這個瀏覽器還沒啟用圖書館連線：請關閉這一頁，回到查詢頁按「啟用圖書館連線」完成登入，再點一次連結。</p></div>'); } catch (_) {} }
+      const [url] = await Promise.all([fulltextTarget(rec, fa), new Promise(res => setTimeout(res, showNote && !S.libClicks ? 1800 : 0))]);
       S.libClicks = (S.libClicks || 0) + 1;
-      if (w && !w.closed) w.location.href = url;
-      else { lib.href = url; lib.dataset.ready = '1'; lib.textContent = '再點一次開啟全文'; }
+      const pub = wantsPing && rec.doi && doiCache.has(rec.doi) ? await doiCache.get(rec.doi) : null;
+      const ping = wantsPing ? ermClickUrl(rec, route, pub) : '';
+      if (w && !w.closed) {
+        if (ping && ping !== url) { w.location.href = ping; setTimeout(() => { try { if (!w.closed) w.location.href = url; } catch (_) {} }, CONFIG.count.delay); }
+        else w.location.href = url;
+      } else { lib.href = url; lib.dataset.ready = '1'; lib.textContent = '再點一次開啟全文'; }
       return;
     }
   }
@@ -1071,6 +1096,8 @@ $('#set-size').addEventListener('change', e => CONFIG.pageSize = +e.target.value
 $('#set-port').addEventListener('input', e => { const v = e.target.value.trim(); CONFIG.library.proxyPort = /^\d+$/.test(v) ? +v : 0; doiCache.clear(); rerenderAll(); });
 $('#set-port').value = CONFIG.library.proxyPort || '';
 $('#set-ebsco').value = CONFIG.ebsco.db;
+$('#set-count').checked = CONFIG.count.via === 'erm';
+$('#set-count').addEventListener('change', e => { CONFIG.count.via = e.target.checked ? 'erm' : ''; });
 $('#set-ebsco').addEventListener('input', e => { const v = e.target.value.trim(); if (v) { CONFIG.ebsco.db = v; rerenderAll(); } });
 $('#set-holdings').addEventListener('change', e => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
