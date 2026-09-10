@@ -112,7 +112,8 @@
   .tag{font-size:12px;padding:2px 8px;border-radius:4px;background:var(--jade-tint);color:var(--jade-deep);line-height:1.5}
   .tag.free{background:var(--blue-tint);color:var(--blue)}
   .tag.warn{background:var(--brass-tint);color:#5B3F08}
-  .tag.id{background:transparent;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11.5px}
+  .tag.id{background:transparent;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11.5px;text-decoration:none}
+  a.tag.id:hover{border-color:var(--jade);color:var(--jade-deep)}
   .acts{display:flex;flex-wrap:wrap;gap:8px}
   .abs{display:none;margin-top:12px;padding:12px 14px;background:var(--soft);border-radius:8px;font-size:14px;line-height:1.75;max-width:74ch}
   .abs.open{display:block}
@@ -227,7 +228,6 @@
     <div class="row">
       <button type="button" class="btn" id="rerun">用這個檢索式重新查找</button>
       <a id="open-pubmed" href="#" target="_blank" rel="noopener">在 PubMed 開啟此檢索</a>
-      <a id="open-pubmed-lib" href="#" target="_blank" rel="noopener">透過圖書館開啟此檢索</a>
     </div>
     <div class="strategy" id="strategy" hidden></div>
     <div class="notfound" id="notfound" hidden></div>
@@ -246,7 +246,7 @@
   </section>
 
   <ol id="results"></ol>
-  <p class="firstnote" id="firstnote" hidden>第一次點「圖書館全文」會先看到圖書館的登入頁；登入後再點一次連結即可，同一瀏覽器內後續的連結都會直接開啟。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
+  <p class="firstnote" id="firstnote" hidden>「圖書館全文」會先把 DOI 解析成出版社網址，再透過圖書館遠端系統開啟；第一次會先看到登入頁，登入後若沒有自動跳轉，回來再點一次即可。若出現 404，表示圖書館沒有訂閱該出版平台：可點 DOI 標籤直接到出版社看是否免費，或透過館際合作（NDDS）申請。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
   <div id="more-wrap" hidden><button type="button" class="btn wide" id="more">載入更多</button></div>
 
   <section class="about" aria-label="說明與設定">
@@ -255,6 +255,7 @@
       <div class="inner">
         <p><strong>資料來源有所本。</strong>每一筆結果都直接來自美國國家醫學圖書館的 PubMed 資料庫（官方 E-utilities 介面），附有 PMID 與 DOI 可供核對；本頁不會自行「產生」任何文獻。</p>
         <p><strong>帳號密碼不經過本頁。</strong>本頁不會要求、也不會儲存你的圖書館帳號密碼。點「圖書館全文」會開啟圖書館官方的遠端連線系統（www.scmhem.org.tw），登入之後即可經由圖書館訂閱取得全文。</p>
+        <p><strong>「圖書館全文」怎麼連？</strong>圖書館的遠端系統只代理有訂閱的出版平台，PubMed 與 doi.org 本身不在其中。所以本頁會先用 doi.org 與 Crossref 的公開 API 把 DOI 解析成出版社網址，再改寫成遠端系統的網址（例如 www.nejm.org 變成 www-nejm-org.www.scmhem.org.tw）。免費文章（PMC 或開放取用出版社）會直接開啟出版社頁面。</p>
         <p><strong>AI 只做兩件事。</strong>在可連上 AI 服務的環境（例如發佈為 Claude 應用）才會啟用：一是把中文問題轉成 PubMed 檢索式，並把檢索式完整顯示給你檢查；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。若 AI 不可用，本頁仍可直接以英文檢索 PubMed。</p>
         <p><strong>要讓全院同仁使用？</strong>把這一個 HTML 檔放到院內網站或任何靜態網頁空間即可，不需要伺服器程式；直接用瀏覽器開啟檔案也能查詢。</p>
         <p><strong>找不到想要的內容？</strong>華藝中文期刊、UpToDate、ClinicalKey、Micromedex 等資料庫不在 PubMed 索引範圍，請從圖書館遠端系統的資料庫清單進入查詢。</p>
@@ -265,9 +266,9 @@
       <div class="inner">
         <fieldset>
           <legend>「圖書館全文」連結方式</legend>
-          <label><input type="radio" name="ftmode" value="pubmed" checked> 透過圖書館遠端系統開啟該篇的 PubMed 頁面，再由頁面上的全文連結進入出版社（網址格式已確認：pubmed-ncbi-nlm-nih-gov.www.scmhem.org.tw）</label>
-          <label><input type="radio" name="ftmode" value="doi"> 透過圖書館遠端系統直接開啟 DOI（doi-org.www.scmhem.org.tw／10.…）</label>
-          <label><input type="radio" name="ftmode" value="login-url"> 以 login?url= 前綴導向（EZproxy 標準格式）</label>
+          <label><input type="radio" name="ftmode" value="publisher" checked> 先把 DOI 解析成出版社網址，再透過圖書館遠端系統開啟（出版社主機-www.scmhem.org.tw）。PubMed 與 doi.org 本身不在圖書館代理範圍，所以不能直接改寫。</label>
+          <label><input type="radio" name="ftmode" value="login-url"> 以 login?url= 前綴導向（若圖書館改用 EZproxy 標準登入頁）</label>
+          <label><input type="radio" name="ftmode" value="direct"> 不經圖書館，直接開出版社網頁（院內網路以 IP 認證時可用）</label>
         </fieldset>
         <label class="field">NCBI API key（選填，可提高查詢頻率上限）<input id="set-key" autocomplete="off"></label>
         <label class="field">聯絡 email（選填，NCBI 建議提供）<input id="set-email" autocomplete="off"></label>
@@ -290,7 +291,7 @@ const CONFIG = {
   library: {
     proxyHost: 'www.scmhem.org.tw',                            // 遠端連線系統主機（主機名稱改寫式代理）
     loginUrl:  'https://www.scmhem.org.tw/scmherm/index.jsp',  // 登入頁
-    fulltextMode: 'pubmed'   // 'pubmed'：透過圖書館開 PubMed 頁 | 'doi'：透過圖書館開 DOI | 'login-url'：login?url= 前綴
+    fulltextMode: 'publisher' // 'publisher'：解析 DOI 後把出版社網址改寫成圖書館代理 | 'login-url'：login?url= 前綴 | 'direct'：不經圖書館
   },
   ncbi: { tool: 'tmh-library-finder', email: '', apiKey: '' },
   pageSize: 20,
@@ -318,14 +319,57 @@ function viaLibrary(url){
   const u = new URL(url);
   return 'https://' + u.hostname.replace(/\./g,'-') + '.' + CONFIG.library.proxyHost + u.pathname + u.search;
 }
-function libraryLink(rec){
+// 這些出版社的文章本來就免費，不必經過圖書館（經過反而可能因未設定而 404）
+const OA_PREFIXES = ['10.1186/', '10.1371/', '10.3389/', '10.3390/', '10.7717/', '10.1101/', '10.7759/', '10.2196/', '10.12688/', '10.1155/', '10.1038/s41598', '10.1136/bmjopen'];
+function isOA(rec){ return !!rec.pmc || (rec.doi && OA_PREFIXES.some(p => rec.doi.toLowerCase().startsWith(p))); }
+// 「圖書館全文」是否需要先解析 DOI（只有 publisher 模式、且有 DOI、且非免費文章）
+function needsResolve(rec){ return CONFIG.library.fulltextMode === 'publisher' && !!rec.doi && !isOA(rec); }
+// 不需解析時可直接算出的連結；需解析時先給直接 DOI 當備援（中鍵／Ctrl 點擊也會用到）
+function fulltextHref(rec){
   const pm  = 'https://pubmed.ncbi.nlm.nih.gov/' + rec.pmid + '/';
-  const doi = rec.doi ? 'https://doi.org/' + rec.doi : null;
-  switch (CONFIG.library.fulltextMode){
-    case 'doi':       return viaLibrary(doi || pm);
-    case 'login-url': return 'https://' + CONFIG.library.proxyHost + '/login?url=' + encodeURIComponent(doi || pm);
-    default:          return viaLibrary(pm);
-  }
+  const doi = rec.doi ? 'https://doi.org/' + rec.doi : '';
+  if (CONFIG.library.fulltextMode === 'login-url' && doi) return 'https://' + CONFIG.library.proxyHost + '/login?url=' + encodeURIComponent(doi);
+  return doi || pm;
+}
+// 把 DOI 解析出的「轉址用」網址正規化成出版社真正的主機
+function normalizePublisherUrl(url, doi){
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'linkinghub.elsevier.com') {
+      const m = u.pathname.match(/\/pii\/([^/?#]+)/);
+      if (m) return 'https://www.sciencedirect.com/science/article/pii/' + m[1].replace(/[^A-Za-z0-9]/g, '');
+    }
+    if (u.hostname === 'doi.wiley.com' || (u.hostname === 'onlinelibrary.wiley.com' && u.pathname.startsWith('/resolve/'))) {
+      if (/^10\.1002\/14651858/i.test(doi)) return 'https://www.cochranelibrary.com/cdsr/doi/' + doi + '/full';
+      return 'https://onlinelibrary.wiley.com/doi/' + doi;
+    }
+    if (u.hostname === 'doi.org' || u.hostname === 'dx.doi.org') return null;
+    return u.href;
+  } catch (e) { return null; }
+}
+const doiCache = new Map();
+async function resolveDOI(doi){
+  if (doiCache.has(doi)) return doiCache.get(doi);
+  const p = (async () => {
+    let url = null;
+    try {   // 1) doi.org 的 Handle API
+      const r = await fetch('https://doi.org/api/handles/' + encodeURIComponent(doi).replace(/%2F/gi, '/') + '?type=URL');
+      if (r.ok) { const j = await r.json(); const v = (j.values || []).find(x => x.type === 'URL'); if (v && v.data && v.data.value) url = normalizePublisherUrl(String(v.data.value), doi); }
+    } catch (e) {}
+    if (!url) try {   // 2) Crossref
+      const r = await fetch('https://api.crossref.org/works/' + encodeURIComponent(doi));
+      if (r.ok) { const j = await r.json(); const u = j.message && j.message.resource && j.message.resource.primary && j.message.resource.primary.URL; if (u) url = normalizePublisherUrl(u, doi); }
+    } catch (e) {}
+    return url;
+  })();
+  doiCache.set(doi, p);
+  return p;
+}
+// 最終要開啟的「圖書館全文」網址（publisher 模式會先解析 DOI）
+async function fulltextTarget(rec){
+  if (!needsResolve(rec)) return fulltextHref(rec);
+  const pub = await resolveDOI(rec.doi);
+  return pub ? viaLibrary(pub) : 'https://doi.org/' + rec.doi;
 }
 
 /* ---------- PubMed E-utilities ---------- */
@@ -491,7 +535,7 @@ function paintLedger(es){
   $('#term').value = S.term;
   $('#count').textContent = S.count ? '共 ' + S.count.toLocaleString() + ' 筆，已載入 ' + (S.records.length + (es ? es.ids.length : 0)) + ' 筆' : '共 0 筆';
   const pmUrl = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(S.term) + '&sort=' + ($('#sort').value === 'pub_date' ? 'date' : 'relevance');
-  $('#open-pubmed').href = pmUrl; $('#open-pubmed-lib').href = viaLibrary(pmUrl);
+  $('#open-pubmed').href = pmUrl;
   const st = $('#strategy');
   if (S.translation) {
     st.hidden = false;
@@ -507,7 +551,7 @@ function paintLedgerWeb(n){
   $('#ledger').hidden = false; $('#term').value = S.term;
   $('#count').textContent = 'AI 網頁檢索找到 ' + n + ' 筆';
   const pmUrl = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(S.term);
-  $('#open-pubmed').href = pmUrl; $('#open-pubmed-lib').href = viaLibrary(pmUrl);
+  $('#open-pubmed').href = pmUrl;
   $('#strategy').hidden = false;
   $('#strategy').textContent = '此環境無法直接連線 PubMed 資料庫，改由 AI 以網頁搜尋 PubMed 取得下列文獻；每筆都可點 PubMed 核對。想要完整的資料庫查詢與摘要，請將本頁下載後直接開啟。';
   $('#notfound').hidden = true; $('#translation-box').hidden = true;
@@ -535,10 +579,10 @@ function recHTML(rec){
   if (rec.lang && rec.lang[0] && rec.lang[0] !== 'eng') tags.push('<span class="tag">' + esc(LANG[rec.lang[0]] || rec.lang[0]) + '</span>');
   if (rec.fromWeb) tags.push('<span class="tag warn">AI 網頁檢索結果，請點 PubMed 核對</span>');
   tags.push('<span class="tag id">PMID ' + esc(rec.pmid) + '</span>');
-  if (rec.doi) tags.push('<span class="tag id">DOI ' + esc(rec.doi) + '</span>');
+  if (rec.doi) tags.push('<a class="tag id" target="_blank" rel="noopener" title="出版社原站（不經圖書館）" href="https://doi.org/' + esc(rec.doi) + '">DOI ' + esc(rec.doi) + '</a>');
   const hasAbs = rec.abstractParts && rec.abstractParts.length;
   const acts = [
-    '<a class="btn lib" target="_blank" rel="noopener" href="' + esc(libraryLink(rec)) + '">圖書館全文</a>',
+    '<a class="btn lib" target="_blank" rel="noopener" href="' + esc(fulltextHref(rec)) + '" title="' + (needsResolve(rec) ? '先解析 DOI，再透過圖書館遠端系統開啟出版社網頁' : isOA(rec) ? '免費文章，直接開啟出版社網頁' : '') + '">' + (isOA(rec) && CONFIG.library.fulltextMode === 'publisher' ? '全文（免費）' : '圖書館全文') + '</a>',
     '<a class="btn" target="_blank" rel="noopener" href="' + esc(pm) + '">PubMed</a>',
     rec.pmc ? '<a class="btn" target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/' + esc(rec.pmc) + '/">PMC 免費全文</a>' : '',
     hasAbs ? '<button type="button" class="btn ghost" data-act="abs" aria-expanded="false">摘要</button>' : '',
@@ -677,7 +721,27 @@ $('#more').addEventListener('click', () => search({ fresh: false }));
 $('#rerun').addEventListener('click', () => { const t = $('#term').value.trim(); if (t) search({ fresh: true, rawTerm: t }); });
 $('#summarize').addEventListener('click', aiSummarize);
 document.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => { $('#q').value = b.textContent; search({ fresh: true }); }));
+$('#results').addEventListener('pointerover', e => {   // 滑鼠移到按鈕上就先解析，點擊時才不用等
+  const a = e.target.closest('a.lib'); if (!a) return;
+  const rec = S.records[+a.closest('li.rec').dataset.i]; if (rec && needsResolve(rec)) fulltextTarget(rec);
+});
 $('#results').addEventListener('click', async e => {
+  const lib = e.target.closest('a.lib');
+  if (lib && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && !lib.dataset.ready) {
+    const rec = S.records[+lib.closest('li.rec').dataset.i];
+    if (rec && needsResolve(rec)) {
+      e.preventDefault();
+      if (doiCache.has(rec.doi)) {            // 已解析：直接開
+        const url = await fulltextTarget(rec); window.open(url, '_blank', 'noopener'); return;
+      }
+      const w = window.open('', '_blank');     // 先同步開一個分頁保住使用者手勢，解析後再導向
+      if (w) { try { w.document.write('<!doctype html><meta charset="utf-8"><title>透過圖書館開啟全文</title><p style="font-family:sans-serif;padding:24px;color:#333">正在解析 DOI 並透過圖書館開啟全文…</p>'); } catch (_) {} }
+      const url = await fulltextTarget(rec);
+      if (w && !w.closed) w.location.href = url;
+      else { lib.href = url; lib.dataset.ready = '1'; lib.textContent = '再點一次開啟全文'; }
+      return;
+    }
+  }
   const btn = e.target.closest('button[data-act]'); if (!btn) return;
   const li = btn.closest('li.rec'); const rec = S.records[+li.dataset.i]; if (!rec) return;
   if (btn.dataset.act === 'abs') { const box = li.querySelector('.abs'); const open = box.classList.toggle('open'); btn.setAttribute('aria-expanded', open); btn.textContent = open ? '收合摘要' : '摘要'; }
