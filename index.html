@@ -63,6 +63,35 @@
   .desk-foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:16px}
   .ai-opt{font-size:13.5px;color:var(--ink)}
   .hint{margin:12px 0 0;padding:10px 12px;background:var(--brass-tint);border-radius:8px;font-size:13.5px;color:#5B3F08}
+  /* 快速／引導式 切換 */
+  .tabs{display:flex;gap:4px;margin:-4px 0 14px;border-bottom:1px solid var(--line)}
+  .tab{background:none;border:0;padding:8px 12px;font-size:14.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+  .tab.active{color:var(--jade-deep);border-bottom-color:var(--jade);font-weight:500}
+  .qtype{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13.5px;margin-bottom:14px;align-items:center;padding:10px 12px;background:var(--soft);border-radius:8px}
+  .qtype .lbl,.pop .lbl,.composed .lbl{color:var(--muted)}
+  .qtype label,.pop label{display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+  .qtype input,.pop input{accent-color:var(--jade)}
+  .qtype .scope{margin-left:auto;display:inline-flex;gap:10px;align-items:center}
+  .concept{display:grid;grid-template-columns:30px 1fr;gap:0 10px;margin-bottom:10px}
+  .ck{font-family:var(--serif);font-size:20px;color:var(--jade);padding-top:20px;line-height:1}
+  .cbody label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+  .cbody input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .chips:empty{display:none}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--jade-tint);color:var(--jade-deep);border-radius:999px;padding:3px 8px 3px 10px;font-size:13px;line-height:1.5}
+  .chip.text{background:var(--soft);color:var(--ink);border:1px solid var(--line)}
+  .chip small{color:var(--muted);font-size:11.5px}
+  .chip button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 2px}
+  .sugg{position:relative;z-index:5;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin-top:4px;overflow:hidden}
+  .sg{display:block;width:100%;text-align:left;border:0;background:#fff;padding:8px 12px;cursor:pointer;border-top:1px solid var(--line);font-size:13.5px;line-height:1.45}
+  .sg:first-child{border-top:0}
+  .sg:hover,.sg:focus{background:var(--soft)}
+  .sg b{color:var(--jade-deep);font-weight:500}
+  .sg span{display:block;color:var(--muted);font-size:12.5px}
+  .sg i{font-style:normal;color:var(--muted);font-size:12px;margin-left:8px}
+  .pop{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13.5px;margin:4px 0 12px;align-items:center}
+  #composed{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12.5px;background:var(--soft);padding:10px 12px;border-radius:8px;margin:4px 0 0;color:var(--ink);min-height:40px}
+  @media (max-width:640px){ .qtype .scope{margin-left:0} }
   .hint-line{margin:8px 0 0;font-size:12.5px;color:var(--muted)}
 
   /* buttons */
@@ -191,12 +220,45 @@
 
 <main>
   <section class="desk" aria-label="查詢">
-    <label for="q" class="desk-label">你想找什麼？</label>
-    <textarea id="q" rows="2" placeholder="例如：hip fracture delirium prevention elderly（PubMed 以英文檢索）"></textarea>
-    <div class="examples">試試：
-      <button type="button" class="ex">hip fracture delirium prevention</button>
-      <button type="button" class="ex">SGLT2 inhibitors heart failure hospitalization</button>
-      <button type="button" class="ex">nurse-led discharge education readmission</button>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab active" role="tab" data-mode="quick">快速查詢</button>
+      <button type="button" class="tab" role="tab" data-mode="guided">引導式查詢（PICO）</button>
+    </div>
+    <div id="mode-quick">
+      <label for="q" class="desk-label">你想找什麼？</label>
+      <textarea id="q" rows="2" placeholder="例如：hip fracture delirium prevention elderly（PubMed 以英文檢索）"></textarea>
+      <div class="examples">試試：
+        <button type="button" class="ex">hip fracture delirium prevention</button>
+        <button type="button" class="ex">SGLT2 inhibitors heart failure hospitalization</button>
+        <button type="button" class="ex">nurse-led discharge education readmission</button>
+      </div>
+    </div>
+    <div id="mode-guided" hidden>
+      <div class="qtype">
+        <span class="lbl">這是什麼問題？</span>
+        <label><input type="radio" name="qt" value="" checked> 不限</label>
+        <label title="找臨床試驗、隨機對照試驗"><input type="radio" name="qt" value="therapy"> 治療／預防：某介入有沒有效</label>
+        <label title="找敏感度、特異度研究"><input type="radio" name="qt" value="diagnosis"> 診斷：某檢查準不準</label>
+        <label title="找世代、追蹤研究"><input type="radio" name="qt" value="prognosis"> 預後：病程會怎樣</label>
+        <label title="找風險、世代研究"><input type="radio" name="qt" value="etiology"> 病因／風險：什麼會導致</label>
+        <label title="找預測模型、評分工具的驗證"><input type="radio" name="qt" value="prediction"> 預測工具／評分</label>
+        <span class="scope"><span class="lbl">範圍</span>
+          <label><input type="radio" name="scope" value="broad" checked> 廣（不漏）</label>
+          <label><input type="radio" name="scope" value="narrow"> 精（少而準）</label>
+        </span>
+      </div>
+      <p class="small" style="margin:0 0 10px">每一列放一個概念；同一列可以放多種說法（會用 OR 連起來），列與列之間用 AND。輸入英文後會出現 MeSH 建議，選了會自動帶入同義詞。</p>
+      <div class="concept" data-k="P"><div class="ck">P</div><div class="cbody"><label>病人／問題（必填）</label><div class="chips"></div><input autocomplete="off" placeholder="例如 hip fracture；輸入後從建議選 MeSH 詞，或按 Enter 直接加入關鍵詞"><div class="sugg" hidden></div></div></div>
+      <div class="concept" data-k="I"><div class="ck">I</div><div class="cbody"><label>介入／暴露／檢查</label><div class="chips"></div><input autocomplete="off" placeholder="例如 melatonin、multicomponent intervention、CT angiography"><div class="sugg" hidden></div></div></div>
+      <div class="concept" data-k="C"><div class="ck">C</div><div class="cbody"><label>比較（選填，通常留空）</label><div class="chips"></div><input autocomplete="off" placeholder="例如 placebo、usual care"><div class="sugg" hidden></div></div></div>
+      <div class="concept" data-k="O"><div class="ck">O</div><div class="cbody"><label>結果（選填）</label><div class="chips"></div><input autocomplete="off" placeholder="例如 delirium、mortality、readmission"><div class="sugg" hidden></div></div></div>
+      <div class="pop"><span class="lbl">族群</span>
+        <label><input type="checkbox" name="pop" value="newborn"> 新生兒</label>
+        <label><input type="checkbox" name="pop" value="child"> 兒童／青少年</label>
+        <label><input type="checkbox" name="pop" value="adult"> 成人</label>
+        <label><input type="checkbox" name="pop" value="aged"> 老年（65+）</label>
+      </div>
+      <div class="composed"><span class="lbl">組成的 PubMed 檢索式（同一列的同義詞用 OR，各列之間用 AND；查完後可在下方修改重查）</span><pre id="composed">（請至少填一個概念）</pre></div>
     </div>
     <div class="filters">
       <label>年份
@@ -958,6 +1020,106 @@ async function aiSummarize(){
   }
 }
 
+/* ---------- 引導式查詢（PICO）：MeSH 建議、臨床問題篩選器、族群 ---------- */
+// PubMed Clinical Queries 的研究方法篩選器（Haynes 等人建立，PubMed 內建）
+const CQ = {
+  therapy:   { broad: '((clinical[Title/Abstract] AND trial[Title/Abstract]) OR clinical trials as topic[MeSH Terms] OR clinical trial[Publication Type] OR random*[Title/Abstract] OR random allocation[MeSH Terms] OR therapeutic use[MeSH Subheading])',
+               narrow: '(randomized controlled trial[Publication Type] OR (randomized[Title/Abstract] AND controlled[Title/Abstract] AND trial[Title/Abstract]))' },
+  diagnosis: { broad: '(sensitiv*[Title/Abstract] OR sensitivity and specificity[MeSH Terms] OR diagnos*[Title/Abstract] OR diagnosis[MeSH:noexp] OR diagnosis, differential[MeSH:noexp] OR diagnosis[Subheading:noexp])',
+               narrow: '(specificity[Title/Abstract])' },
+  prognosis: { broad: '(incidence[MeSH:noexp] OR mortality[MeSH Terms] OR follow up studies[MeSH:noexp] OR prognos*[Text Word] OR predict*[Text Word] OR course*[Text Word])',
+               narrow: '(prognos*[Title/Abstract] OR (first[Title/Abstract] AND episode[Title/Abstract]) OR cohort[Title/Abstract])' },
+  etiology:  { broad: '(risk*[Title/Abstract] OR risk*[MeSH:noexp] OR cohort studies[MeSH Terms] OR group[Text Word] OR groups[Text Word] OR grouped[Text Word])',
+               narrow: '((relative[Title/Abstract] AND risk*[Title/Abstract]) OR (relative risk[Text Word]) OR risks[Text Word] OR cohort studies[MeSH:noexp] OR (cohort[Title/Abstract] AND stud*[Title/Abstract]))' },
+  prediction:{ broad: '(predict*[Title/Abstract] OR predictive value of tests[MeSH Terms] OR scor*[Title/Abstract] OR observ*[Title/Abstract] OR observer variation[MeSH Terms])',
+               narrow: '(validation[Title/Abstract] OR validate[Title/Abstract])' }
+};
+const POP = { newborn: '"infant, newborn"[mh]', child: '(child[mh] OR adolescent[mh])', adult: 'adult[mh]', aged: 'aged[mh]' };
+S.mode = 'quick'; S.guided = { P: [], I: [], C: [], O: [] };
+const meshCache = new Map();
+// 查 MeSH：回傳 [{name, terms, note}]；terms 已含描述語本身與挑選過的同義詞（去掉倒裝、太長的）
+async function meshSuggest(text){
+  const key = text.toLowerCase(); if (meshCache.has(key)) return meshCache.get(key);
+  const p = (async () => {
+    const r1 = await fetch(eutil('esearch', { db: 'mesh', term: text, retmax: 6, retmode: 'json' })); if (!r1.ok) return [];
+    const ids = ((await r1.json()).esearchresult || {}).idlist || []; if (!ids.length) return [];
+    const r2 = await fetch(eutil('esummary', { db: 'mesh', id: ids.join(','), retmode: 'json' })); if (!r2.ok) return [];
+    const res = (await r2.json()).result || {};
+    return (res.uids || ids).map(u => res[u]).filter(x => x && Array.isArray(x.ds_meshterms) && x.ds_meshterms.length).map(x => {
+      const all = x.ds_meshterms.map(t => String(t).trim()).filter(Boolean);
+      const name = all[0]; const seen = new Set([name.toLowerCase()]);
+      const syn = all.slice(1).filter(t => !/[,()]/.test(t) && t.split(/\s+/).length <= 4 && t.length <= 40 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())).slice(0, 6);
+      return { name, terms: [name, ...syn], note: String(x.ds_scopenote || '').trim() };
+    });
+  })().catch(() => []);
+  meshCache.set(key, p); return p;
+}
+const textFrag = t => { t = t.trim().replace(/\s+/g, ' '); return /\s/.test(t) ? '(' + t + ')' : t; };   // 不加標籤，讓 PubMed 自動對應 MeSH
+const meshFrag = m => '"' + m.name + '"[Mesh] OR ' + m.terms.map(t => '"' + t + '"[tiab]').join(' OR ');
+function conceptFrag(k){
+  const chips = S.guided[k]; const inp = document.querySelector('.concept[data-k="' + k + '"] input');
+  const parts = chips.map(c => c.frag);
+  if (!chips.length && inp && inp.value.trim()) parts.push(textFrag(inp.value));
+  if (!parts.length) return '';
+  return parts.length > 1 || /\sOR\s/.test(parts[0]) ? '(' + parts.join(' OR ') + ')' : parts[0];
+}
+function composeGuided(){
+  const cs = ['P', 'I', 'C', 'O'].map(conceptFrag).filter(Boolean); if (!cs.length) return '';
+  let q = cs.join(' AND ');
+  const qt = (document.querySelector('input[name=qt]:checked') || {}).value, sc = (document.querySelector('input[name=scope]:checked') || {}).value || 'broad';
+  if (qt && CQ[qt]) q += ' AND ' + CQ[qt][sc];
+  const pops = [...document.querySelectorAll('input[name=pop]:checked')].map(c => POP[c.value]).filter(Boolean);
+  if (pops.length) q += ' AND ' + (pops.length > 1 ? '(' + pops.join(' OR ') + ')' : pops[0]);
+  return q;
+}
+function guidedSummary(){
+  return ['P', 'I', 'C', 'O'].map(k => { const chips = S.guided[k]; const inp = document.querySelector('.concept[data-k="' + k + '"] input');
+    const t = chips.length ? chips.map(c => c.label).join('／') : (inp ? inp.value.trim() : ''); return t ? k + '：' + t : ''; }).filter(Boolean).join('；');
+}
+function paintComposed(){ const q = composeGuided(); $('#composed').textContent = q || '（請至少填一個概念）'; return q; }
+function paintChips(k){
+  const box = document.querySelector('.concept[data-k="' + k + '"] .chips');
+  box.innerHTML = S.guided[k].map((c, i) => '<span class="chip ' + c.kind + '">' + (c.kind === 'mesh' ? 'MeSH ' : '') + esc(c.label) +
+    (c.kind === 'mesh' && c.terms.length > 1 ? ' <small>+' + (c.terms.length - 1) + ' 同義詞</small>' : '') + '<button type="button" data-rm="' + i + '" aria-label="移除">×</button></span>').join('');
+  paintComposed();
+}
+function addChip(k, chip){ if (S.guided[k].some(c => c.frag === chip.frag)) return; S.guided[k].push(chip); paintChips(k); }
+function closeSugg(k){ const sg = document.querySelector('.concept[data-k="' + k + '"] .sugg'); sg.hidden = true; sg.innerHTML = ''; }
+async function showSugg(k, text){
+  const sg = document.querySelector('.concept[data-k="' + k + '"] .sugg'); const inp = document.querySelector('.concept[data-k="' + k + '"] input');
+  if (hasCJK(text)) { sg.hidden = false; sg.innerHTML = '<div class="sg" style="cursor:default">PubMed 的 MeSH 詞只有英文，請用英文輸入。</div>'; return; }
+  sg.hidden = false; sg.innerHTML = '<div class="sg" style="cursor:default;color:var(--muted)">查 MeSH 詞中…</div>';
+  const list = S.pubmed === false ? [] : await meshSuggest(text);
+  if (inp.value.trim() !== text) return;   // 使用者已經改字了
+  const items = list.slice(0, 5).map((m, i) => '<button type="button" class="sg" data-mesh="' + i + '"><b>' + esc(m.name) + '</b>' + (m.terms.length > 1 ? '<i>+' + (m.terms.length - 1) + ' 同義詞</i>' : '') + (m.note ? '<span>' + esc(m.note.slice(0, 110)) + (m.note.length > 110 ? '…' : '') + '</span>' : '') + '</button>');
+  items.push('<button type="button" class="sg" data-text="1">直接加入關鍵詞「' + esc(text) + '」<span>不指定 MeSH，交給 PubMed 自動對應</span></button>');
+  sg.innerHTML = items.join(''); sg.dataset.list = JSON.stringify(list.slice(0, 5));
+}
+function initGuided(){
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    S.mode = t.dataset.mode; document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+    $('#mode-quick').hidden = S.mode !== 'quick'; $('#mode-guided').hidden = S.mode !== 'guided';
+    if (S.mode === 'guided') { paintComposed(); const p = document.querySelector('.concept[data-k="P"] input'); if (p && !S.guided.P.length) p.focus(); } else $('#q').focus();
+  }));
+  document.querySelectorAll('.concept').forEach(row => {
+    const k = row.dataset.k, inp = row.querySelector('input'), sg = row.querySelector('.sugg'); let timer = null;
+    inp.addEventListener('input', () => { paintComposed(); clearTimeout(timer); const t = inp.value.trim(); if (t.length < 3) { closeSugg(k); return; } timer = setTimeout(() => showSugg(k, t), 350); });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); const t = inp.value.trim(); if (t) { addChip(k, { kind: 'text', label: t, frag: textFrag(t) }); inp.value = ''; closeSugg(k); } }
+      if (e.key === 'Escape') closeSugg(k);
+    });
+    inp.addEventListener('blur', () => setTimeout(() => { if (!row.contains(document.activeElement)) closeSugg(k); }, 150));
+    sg.addEventListener('click', e => {
+      const b = e.target.closest('button.sg'); if (!b) return;
+      if (b.dataset.mesh !== undefined) { const m = JSON.parse(sg.dataset.list || '[]')[+b.dataset.mesh]; if (m) addChip(k, { kind: 'mesh', label: m.name, terms: m.terms, frag: meshFrag(m) }); }
+      else if (b.dataset.text) { const t = inp.value.trim(); if (t) addChip(k, { kind: 'text', label: t, frag: textFrag(t) }); }
+      inp.value = ''; closeSugg(k); inp.focus();
+    });
+    row.querySelector('.chips').addEventListener('click', e => { const b = e.target.closest('button[data-rm]'); if (!b) return; S.guided[k].splice(+b.dataset.rm, 1); paintChips(k); });
+  });
+  document.querySelectorAll('input[name=qt],input[name=scope],input[name=pop]').forEach(i => i.addEventListener('change', paintComposed));
+}
+
 /* ---------- 主流程 ---------- */
 async function search(opts = {}){
   const fresh = opts.fresh !== false, rawTerm = opts.rawTerm || null;
@@ -1038,7 +1200,14 @@ async function copyText(t){
               let ok = false; try { ok = document.execCommand('copy'); } catch (_) {} ta.remove(); return ok; }
 }
 
-$('#go').addEventListener('click', () => search({ fresh: true }));
+$('#go').addEventListener('click', () => {
+  if (S.mode !== 'guided') return search({ fresh: true });
+  const q = paintComposed();
+  if (!q) { const p = document.querySelector('.concept[data-k="P"] input'); if (p) p.focus(); showHint('引導式查詢至少要填一個概念（例如 P 病人／問題）。'); return; }
+  S.question = guidedSummary();
+  search({ fresh: true, rawTerm: applyFilters(q) });
+});
+initGuided();
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); search({ fresh: true }); } });
 $('#more').addEventListener('click', () => search({ fresh: false }));
 $('#rerun').addEventListener('click', () => { const t = $('#term').value.trim(); if (t) search({ fresh: true, rawTerm: t }); });
