@@ -175,7 +175,7 @@
     <div>
       <div class="org">台南市立醫院圖書館</div>
       <h1>找文獻</h1>
-      <p class="tagline">用中文或英文描述你的問題。查到的每一筆都是 PubMed 收錄的真實文獻，附 PMID／DOI 可核對，並可直接透過圖書館取得全文。</p>
+      <p class="tagline">用英文關鍵詞描述你的問題。查到的每一筆都是 PubMed 收錄的真實文獻，附 PMID／DOI 可核對，並可直接透過圖書館取得全文。</p>
     </div>
     <div class="mast-side">
       <div class="pills" aria-live="polite">
@@ -192,10 +192,10 @@
 <main>
   <section class="desk" aria-label="查詢">
     <label for="q" class="desk-label">你想找什麼？</label>
-    <textarea id="q" rows="2" placeholder="例如：老年髖部骨折術後，預防譫妄有哪些有效的介入措施？"></textarea>
+    <textarea id="q" rows="2" placeholder="例如：hip fracture delirium prevention elderly（PubMed 以英文檢索）"></textarea>
     <div class="examples">試試：
-      <button type="button" class="ex">老年髖部骨折術後預防譫妄的介入措施</button>
-      <button type="button" class="ex">SGLT2 抑制劑對第二型糖尿病心衰竭住院的影響</button>
+      <button type="button" class="ex">hip fracture delirium prevention</button>
+      <button type="button" class="ex">SGLT2 inhibitors heart failure hospitalization</button>
       <button type="button" class="ex">nurse-led discharge education readmission</button>
     </div>
     <div class="filters">
@@ -229,7 +229,7 @@
       <label class="chk"><input type="checkbox" id="free"> 只看免費全文</label>
     </div>
     <div class="desk-foot">
-      <label class="chk ai-opt" id="ai-opt" hidden><input type="checkbox" id="useai" checked> 先請 AI 把問題轉成 PubMed 英文檢索式（MeSH、同義詞）</label>
+      <label class="chk ai-opt" id="ai-opt" hidden><input type="checkbox" id="useai" checked> 先請 AI 讀懂問題或臨床情境，轉成 PubMed 檢索式（PICO、MeSH、同義詞）</label>
       <span id="ai-opt-space"></span>
       <button type="button" id="go" class="btn primary">查找</button>
     </div>
@@ -279,7 +279,7 @@
         <p><strong>「圖書館全文」怎麼連？</strong>圖書館的代理引擎（www.scmhem.org.tw 的 3001 埠）只代理有訂閱的出版平台，PubMed 與 doi.org 本身不在其中。所以本頁會先用 doi.org 與 Crossref 的公開 API 把 DOI 解析成出版社網址，再交給代理引擎的登入入口（login?url=）處理登入與轉址；經代理後的網址長得像 www-nejm-org.www.scmhem.org.tw:3001。免費文章（PMC 或開放取用出版社）會直接開啟出版社頁面。</p>
         <p><strong>為什麼有時會顯示「未訂閱」？</strong>代理引擎只認得「出版平台」，不知道圖書館在該平台上訂了哪些期刊，所以同一個網站上有的期刊能開、有的不能。若圖書館提供期刊清單（holdings.csv），本頁會用 ISSN 與刊名比對，直接標示「館藏訂閱」或「清單未列此刊」。拿不到的文章可用「免費版本」（OpenAlex／Unpaywall 找到的合法免費全文）或「館際合作」取得。</p>
         <p><strong>有些資料庫要另外登入，怎麼辦？</strong>經過圖書館代理時，大多數平台會以醫院 IP 認證，不必再輸入帳密。少數平台例外：一種是要先在院內網路註冊個人帳號（如 ClinicalKey、DynaMed），一種是圖書館提供共用帳密（如 EBSCO、Cochrane）。本頁不會存放任何帳密，遇到這些平台只會提示，並附上 ERM 資料庫簡介的連結；共用帳密只在登入 ERM 之後才看得到，請不要把它們貼到本頁或任何公開網頁。</p>
-        <p><strong>AI 只做兩件事。</strong>在可連上 AI 服務的環境（例如發佈為 Claude 應用）才會啟用：一是把中文問題轉成 PubMed 檢索式，並把檢索式完整顯示給你檢查；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。若 AI 不可用，本頁仍可直接以英文檢索 PubMed。</p>
+        <p id="about-ai" hidden><strong>AI 只做兩件事。</strong>一是讀懂問題或臨床情境，歸納成 PICO 問題並轉成 PubMed 檢索式，檢索式與替代策略都完整顯示給你檢查、可自行修改；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。</p>
         <p><strong>要讓全院同仁使用？</strong>把這一個 HTML 檔放到院內網站或任何靜態網頁空間即可，不需要伺服器程式；直接用瀏覽器開啟檔案也能查詢。</p>
         <p><strong>找不到想要的內容？</strong>華藝中文期刊、UpToDate、ClinicalKey、Micromedex 等資料庫不在 PubMed 索引範圍，請從圖書館遠端系統的資料庫清單進入查詢。</p>
       </div>
@@ -353,7 +353,11 @@ const CONFIG = {
   openAlex: true,                // 用 OpenAlex（Unpaywall 資料）自動找合法免費全文
   ill: { label: '館際合作', url: 'https://ndds.stpi.narl.org.tw/' },   // 全國文獻傳遞服務 NDDS
   pageSize: 20,
-  ai: { model: 'claude-sonnet-4-6' }
+  ai: {
+    model: 'claude-sonnet-4-6',   // 只在「發佈為 Claude 應用」時直接使用；經中繼站時由中繼站決定模型
+    endpoint: '',                 // AI 中繼站（Cloudflare Worker）的網址，例如 'https://tmh-ai.你的帳號.workers.dev'。留空＝只有在 Claude 應用內才有 AI
+    accessCode: ''                // 中繼站若設定了存取碼，填在這裡（公開頁面上的存取碼只能擋掃描器，不是機密）
+  }
 };
 
 /* ---------- 小工具 ---------- */
@@ -557,8 +561,14 @@ async function claude(system, user, opts = {}){
   try {
     const body = { model: CONFIG.ai.model, max_tokens: 1000, system, messages: [{ role:'user', content:user }] };
     if (opts.tools) body.tools = opts.tools;
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
-    if (!r.ok) throw new Error('AI 服務回應 ' + r.status);
+    const viaRelay = !!CONFIG.ai.endpoint;
+    const headers = { 'Content-Type': 'application/json' };
+    if (viaRelay && CONFIG.ai.accessCode) headers['X-Access-Code'] = CONFIG.ai.accessCode;
+    const r = await fetch(viaRelay ? CONFIG.ai.endpoint : 'https://api.anthropic.com/v1/messages', { method:'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
+    if (!r.ok) {
+      const msg = { 401: 'AI 中繼站需要存取碼（請在設定填入）', 403: 'AI 中繼站不允許這個網址使用', 429: '今日 AI 額度已用完，請明天再試', 413: '送出的內容太長' }[r.status];
+      throw new Error(msg || 'AI 服務回應 ' + r.status);
+    }
     const data = await r.json();
     if (data.error) throw new Error(data.error.message || 'AI 服務錯誤');
     return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
@@ -579,12 +589,14 @@ function extractJSON(text){
   if (a >= 0 && b > a) { try { return JSON.parse(clean.slice(a, b + 1) + ']'); } catch (e) {} }
   throw new Error('無法解析 AI 回傳的內容');
 }
-const SYS_TRANSLATE = `你是醫學圖書館的檢索專家。把使用者的臨床問題轉成一條 PubMed 檢索式（英文）：
-- 拆出 2–4 個核心概念，每個概念以 MeSH 詞（[mh]）加上自由詞同義詞（[tiab]）用 OR 併列，概念之間用 AND 連接。
-- 檢索式要能實際查到文獻：不要過度限縮，不要加入日期、文獻類型、語言或 humans 限制（介面會另外加）。
-- 檢索式寫在同一行，不要換行。
-只回傳 JSON（不要 markdown 圍欄、不要其他文字）：
-{"query":"...","concepts":["概念一：英文詞","概念二：英文詞"],"note":"一句話（繁體中文）說明檢索策略"}`;
+const SYS_TRANSLATE = `你是醫院圖書館的實證醫學檢索專家。使用者會用中文或英文輸入一個臨床問題，或是一段臨床情境（病人描述、床邊遇到的狀況、開會要準備的題目）。請：
+1. 若是情境而非明確問題，先歸納出「最值得查證的一個臨床問題」，用 PICO 表達（P 病人／問題、I 介入或暴露、C 比較、O 結果；沒有的欄位留空）。若情境含多個問題，主問題放 query，其餘做成 alternatives。
+2. 判斷問題類型：therapy（治療／預防）、diagnosis、prognosis、etiology（病因／危險因子）、other。
+3. 把主問題轉成一條 PubMed 檢索式（英文）：拆出 2–4 個核心概念，每個概念以 MeSH 詞（[mh]）加上自由詞同義詞（[tiab]）用 OR 併列，概念之間用 AND 連接；不要過度限縮，不要加入日期、文獻類型、語言或 humans 限制（介面會另外加）；寫在同一行。
+4. 另給 1–3 條替代策略（例如更廣的、更精準的、或針對次要問題的），每條附 6 字內的標籤。
+5. 依問題類型建議先看的文獻類型：therapy → "sr"（系統性回顧／統合分析）；diagnosis → "sr"；prognosis 或 etiology → ""；若問題是「怎麼做」類的臨床實務 → "guideline"。
+只回傳 JSON（不要 markdown 圍欄、不要其他文字），note 用繁體中文一到兩句說明你判斷的問題與策略：
+{"question":"歸納後的臨床問題（繁體中文）","type":"therapy","pico":{"P":"","I":"","C":"","O":""},"query":"...","alternatives":[{"label":"更廣","query":"..."}],"suggest":"sr","note":"..."}`;
 const SYS_SUMMARIZE = `你是實證醫學圖書館員。使用者會給你一個問題，以及一份有編號的文獻清單（含摘要）。
 請只根據這些摘要，用繁體中文寫一段 150–250 字的重點整理：
 - 每個陳述句都必須以 [編號] 標注來源，且只能引用清單中存在的編號。
@@ -600,9 +612,19 @@ const SYS_WEB = `你是醫學圖書館員的檢索助理。請用 web_search 工
 - 最多 8 筆，依相關性排序。`;
 
 async function aiTranslate(question){
-  const j = extractJSON(await claude(SYS_TRANSLATE, question, { timeout: 40000 }));
+  const j = extractJSON(await claude(SYS_TRANSLATE, question, { timeout: 60000 }));
   if (!j || !j.query) throw new Error('AI 沒有給出檢索式');
-  return { query: String(j.query).replace(/\s+/g, ' ').trim(), concepts: Array.isArray(j.concepts) ? j.concepts : [], note: j.note || '' };
+  const oneLine = q => String(q || '').replace(/\s+/g, ' ').trim();
+  const pico = j.pico && typeof j.pico === 'object' ? j.pico : {};
+  return {
+    query: oneLine(j.query),
+    question: j.question || '',
+    type: j.type || '',
+    pico: ['P', 'I', 'C', 'O'].map(k => pico[k] ? k + '：' + pico[k] : '').filter(Boolean),
+    alternatives: (Array.isArray(j.alternatives) ? j.alternatives : []).filter(a => a && a.query).slice(0, 3).map(a => ({ label: String(a.label || '替代').slice(0, 12), query: oneLine(a.query) })),
+    suggest: ['sr', 'rct', 'guideline'].includes(j.suggest) ? j.suggest : '',
+    note: j.note || ''
+  };
 }
 async function aiWebFallback(question, term){
   const text = await claude(SYS_WEB, '問題：' + question + '\n可參考的英文檢索詞：' + term,
@@ -735,8 +757,10 @@ function paintPills(){
   p.title = S.pubmed === false ? '此環境封鎖了對 PubMed 的直接連線。將本頁下載後直接以瀏覽器開啟，或部署到院內網站即可直連。' : '結果直接來自 NCBI PubMed 資料庫';
   a.className = 'pill ' + (S.ai === null ? '' : S.ai ? 'ok' : 'off');
   a.innerHTML = '<i></i>' + (S.ai === null ? 'AI 助理檢查中' : S.ai ? 'AI 助理可用' : 'AI 助理未啟用');
-  a.title = S.ai ? 'AI 可協助轉換檢索式與整理摘要' : '此環境未連上 AI 服務；仍可直接以英文檢索 PubMed';
+  a.title = 'AI 可讀懂中文問題或臨床情境、轉成檢索式，並整理已查到的摘要';
+  a.hidden = !S.ai;                      // 沒有 AI 的環境就不顯示，頁面單純一點
   $('#ai-opt').hidden = !S.ai;
+  const ab = $('#about-ai'); if (ab) ab.hidden = !S.ai;
   const h = $('#pill-holdings');
   h.className = 'pill ' + (S.holdings ? 'ok' : 'off');
   h.innerHTML = '<i></i>' + (S.holdings ? '館藏清單 ' + S.holdings.count.toLocaleString() + ' 種期刊' : '館藏清單未載入');
@@ -760,7 +784,19 @@ function paintLedger(es){
   const st = $('#strategy');
   if (S.translation) {
     st.hidden = false;
-    st.innerHTML = 'AI 的檢索策略：' + esc(S.translation.note) + (S.translation.concepts.length ? '<ul>' + S.translation.concepts.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' : '');
+    const tr = S.translation;
+    const TYPE = { therapy: '治療／預防', diagnosis: '診斷', prognosis: '預後', etiology: '病因／危險因子', other: '其他' };
+    const SUG = { sr: '系統性回顧／統合分析', rct: '隨機對照試驗', guideline: '臨床指引' };
+    const SUG_VALUE = { sr: '(systematic review[pt] OR meta-analysis[pt] OR systematic[sb])', rct: 'randomized controlled trial[pt]', guideline: '(practice guideline[pt] OR guideline[pt])' };
+    let html = '';
+    if (tr.question) html += '<div><strong>AI 歸納的問題：</strong>' + esc(tr.question) + (tr.type && TYPE[tr.type] ? '（' + TYPE[tr.type] + '）' : '') + '</div>';
+    if (tr.pico.length) html += '<div class="small" style="margin-top:4px">' + tr.pico.map(esc).join('　') + '</div>';
+    if (tr.note) html += '<div style="margin-top:6px">' + esc(tr.note) + '</div>';
+    const chips = [];
+    if (tr.suggest && SUG[tr.suggest] && $('#pt').value !== SUG_VALUE[tr.suggest]) chips.push('<button type="button" class="ex" data-suggest="' + esc(tr.suggest) + '">建議先看：' + SUG[tr.suggest] + '</button>');
+    tr.alternatives.forEach((a, i) => chips.push('<button type="button" class="ex" data-alt="' + i + '" title="' + esc(a.query) + '">換一種檢索：' + esc(a.label) + '</button>'));
+    if (chips.length) html += '<div class="examples" style="margin-top:8px">' + chips.join('') + '</div>';
+    st.innerHTML = html || ('AI 的檢索策略：' + esc(tr.note));
   } else st.hidden = true;
   const nf = $('#notfound');
   if (es && es.notFound.length) { nf.hidden = false; nf.textContent = 'PubMed 找不到這些詞，已被忽略：' + es.notFound.join('、') + '。可改用同義詞或英文再試。'; }
@@ -895,7 +931,7 @@ async function search(opts = {}){
   try {
     await Promise.all([S.pmProbe, S.aiProbe]);
     if (fresh) {
-      S.records = []; S.retstart = 0; S.count = 0; S.translation = null;
+      S.records = []; S.retstart = 0; S.count = 0; if (!opts.keepTranslation) S.translation = null;
       $('#results').innerHTML = ''; $('#aipanel').hidden = true; $('#more-wrap').hidden = true; $('#firstnote').hidden = true;
       $('#ai-sum').hidden = true; $('#ai-disc').hidden = true; $('#ai-action').hidden = false;
       $('#summarize').disabled = false; $('#summarize').textContent = '請 AI 整理重點（只依據上列文獻的摘要）';
@@ -908,7 +944,7 @@ async function search(opts = {}){
           try { S.translation = await aiTranslate(question); base = S.translation.query; }
           catch (e) { showHint('AI 轉換檢索式失敗（' + e.message + '），改用你輸入的原文查詢。'); }
         } else if (hasCJK(question) && S.pubmed !== false) {
-          showHint('PubMed 只能用英文檢索。請改用英文關鍵詞（例：hip fracture delirium prevention）；在可用 AI 的環境開啟本頁時，AI 可代為轉換。');
+          showHint('PubMed 只能用英文檢索，請改用英文關鍵詞，例如：hip fracture delirium prevention。');
         }
         S.term = applyFilters(base);
       }
@@ -970,6 +1006,16 @@ $('#go').addEventListener('click', () => search({ fresh: true }));
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); search({ fresh: true }); } });
 $('#more').addEventListener('click', () => search({ fresh: false }));
 $('#rerun').addEventListener('click', () => { const t = $('#term').value.trim(); if (t) search({ fresh: true, rawTerm: t }); });
+$('#strategy').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !S.translation) return;
+  const keep = S.translation;
+  if (b.dataset.alt !== undefined) { const a = keep.alternatives[+b.dataset.alt]; if (a) search({ fresh: true, rawTerm: applyFilters(a.query), keepTranslation: true }); }
+  if (b.dataset.suggest) {
+    const SUG_VALUE = { sr: '(systematic review[pt] OR meta-analysis[pt] OR systematic[sb])', rct: 'randomized controlled trial[pt]', guideline: '(practice guideline[pt] OR guideline[pt])' };
+    $('#pt').value = SUG_VALUE[b.dataset.suggest] || '';
+    search({ fresh: true, rawTerm: applyFilters(keep.query), keepTranslation: true });
+  }
+});
 $('#summarize').addEventListener('click', aiSummarize);
 document.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => { $('#q').value = b.textContent; search({ fresh: true }); }));
 $('#results').addEventListener('pointerover', e => {   // 滑鼠移到按鈕上就先解析，點擊時才不用等
