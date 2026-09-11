@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>找文獻（Claude 版）｜台南市立醫院圖書館</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{--jade:#1B6B5A;--jade-deep:#114A3E;--ink:#16262E;--muted:#5B6A70;--line:#D5DFDA;--soft:#F3F5F4;--brass:#9A6B14}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:var(--jade-deep);color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;line-height:1.6}
+  .card{max-width:520px;width:100%}
+  .eyebrow{font-size:13px;color:#BFD8CF;margin:0 0 4px}
+  h1{font-size:34px;margin:0 0 6px}
+  .lead{color:#BFD8CF;font-size:15px;margin:0 0 22px}
+  .btn{display:block;width:100%;font:inherit;font-size:18px;font-weight:700;padding:16px;border:0;border-radius:12px;background:#fff;color:var(--jade-deep);cursor:pointer}
+  .btn:active{background:#E4F0EC}
+  .status{margin:14px 0 0;font-size:14px;color:#BFD8CF}
+  .box{margin-top:26px;padding:14px 16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:12px;font-size:14px}
+  .box strong{color:#fff}
+  .box p{margin:0 0 8px}
+  .box p:last-child{margin:0}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;word-break:break-all;color:#fff;background:rgba(0,0,0,.25);padding:2px 6px;border-radius:6px}
+  .foot{margin-top:22px;font-size:12px;color:#8FB3A7}
+</style>
+</head>
+<body>
+<div class="card">
+  <p class="eyebrow">台南市立醫院圖書館</p>
+  <h1>找文獻</h1>
+  <p class="lead">Claude 版　從臨床問題到圖書館全文</p>
+
+  <button class="btn" id="open" type="button">在瀏覽器開啟找文獻</button>
+  <p class="status" id="status">正在為你開啟…</p>
+
+  <div class="box">
+    <p><strong>如果跳到了 Claude App</strong>：請點手機螢幕左上角的「◀ Safari」或右上角的「claude.ai ▸」回到瀏覽器，之後 iPhone／iPad 就會固定用瀏覽器開啟。連接器在 App 內不會運作，一定要在瀏覽器裡使用。</p>
+    <p><strong>Mac 使用者</strong>：Chrome 或 Claude 桌面版 App 最快；Safari 也能用，但會稍慢。</p>
+    <p><strong>也可以自己貼網址</strong>：<code id="url"></code></p>
+  </div>
+  <p class="foot">只輸入去識別化的臨床問題，不要貼入病人可識別資訊。</p>
+</div>
+<script>
+  // 目前使用中的 Claude 版網址。之後改版只要改這一行重新上傳，QR code 不必重印。
+  const TARGET = 'https://claude.ai/public/artifacts/4cd0960e-0f5a-48a8-a3af-7cafb6251510';
+
+  document.getElementById('url').textContent = TARGET;
+  // 用程式導向而不是超連結：iOS 的「通用連結」只在使用者點擊連結時才會把網址交給 App，
+  // 由程式發起的導向會留在瀏覽器裡。
+  const go = () => { location.href = TARGET; };
+  document.getElementById('open').addEventListener('click', go);
+  setTimeout(go, 400);
+  // 若三秒後仍停在本頁（例如被 App 攔走又切回來），提示改用按鈕
+  setTimeout(() => { document.getElementById('status').textContent = '沒有自動開啟？請按上面的按鈕，或複製下方網址貼到瀏覽器。'; }, 3000);
+</script>
+</body>
+</html>
