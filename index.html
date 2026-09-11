@@ -105,6 +105,9 @@
   .btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding-left:8px;padding-right:8px}
   .btn.ghost:hover{background:var(--soft);color:var(--ink)}
   .btn.wide{width:100%;justify-content:center;padding:11px}
+  .handoff{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)}
+  .handoff .btn{font-size:13px;padding:6px 12px}
+  .handoff-bar{margin-top:16px;padding:12px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13.5px;color:var(--muted)}
 
   /* status */
   #status{margin:16px 0 0;font-size:14px;color:var(--muted);display:flex;gap:10px;align-items:center;min-height:1.5em}
@@ -227,6 +230,10 @@
     <div id="mode-quick">
       <label for="q" class="desk-label">你想找什麼？</label>
       <textarea id="q" rows="2" placeholder="例如：hip fracture delirium prevention elderly（PubMed 以英文檢索）"></textarea>
+      <div class="handoff">
+        <button type="button" class="btn" id="claude-translate">用 Claude 幫我轉成檢索式</button>
+        <span>可用中文或臨床情境。會把提示複製好並開啟 Claude（免費版即可），貼上送出後，把它給的檢索式貼回上面查找。</span>
+      </div>
       <div class="examples">試試：
         <button type="button" class="ex">hip fracture delirium prevention</button>
         <button type="button" class="ex">SGLT2 inhibitors heart failure hospitalization</button>
@@ -315,6 +322,10 @@
     </details>
   </section>
 
+  <div class="handoff-bar" id="handoff-sum" hidden>
+    <button type="button" class="btn" id="claude-summarize">用 Claude 整理這些文獻的重點</button>
+    <span id="handoff-sum-note"></span>
+  </div>
   <section class="aipanel" id="aipanel" hidden aria-label="AI 重點整理">
     <h2>AI 重點整理</h2>
     <p class="small" id="ai-scope"></p>
@@ -344,6 +355,7 @@
         <p><strong>有些資料庫要另外登入，怎麼辦？</strong>經過圖書館代理時，大多數平台會以醫院 IP 認證，不必再輸入帳密。少數平台例外：一種是要先在院內網路註冊個人帳號（如 ClinicalKey、DynaMed），一種是圖書館提供共用帳密（如 EBSCO、Cochrane）。本頁不會存放任何帳密，遇到這些平台只會提示，並附上 ERM 資料庫簡介的連結；共用帳密只在登入 ERM 之後才看得到，請不要把它們貼到本頁或任何公開網頁。</p>
         <p id="about-ai" hidden><strong>AI 只做兩件事。</strong>一是讀懂問題或臨床情境，歸納成 PICO 問題並轉成 PubMed 檢索式，檢索式與替代策略都完整顯示給你檢查、可自行修改；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。</p>
         <p><strong>要讓全院同仁使用？</strong>把這一個 HTML 檔放到院內網站或任何靜態網頁空間即可，不需要伺服器程式；直接用瀏覽器開啟檔案也能查詢。</p>
+        <p><strong>想用中文問、或請 AI 整理重點？</strong>「用 Claude 幫我轉成檢索式」和「用 Claude 整理這些文獻的重點」會把寫好的提示複製到剪貼簿並開啟 Claude（免費帳號即可），你貼上送出就好；檢索式再貼回本頁查找。本頁不會把任何資料傳到 Claude，是你自己貼過去的，帳號密碼也不會經過。</p>
         <p><strong>找不到想要的內容？</strong>華藝中文期刊、UpToDate、ClinicalKey、Micromedex 等資料庫不在 PubMed 索引範圍，請從圖書館遠端系統的資料庫清單進入查詢。</p>
       </div>
     </details>
@@ -516,6 +528,7 @@ function needsResolve(rec, forceArticle){
 function fulltextHref(rec, forceArticle){
   const pm  = 'https://pubmed.ncbi.nlm.nih.gov/' + rec.pmid + '/';
   const doi = rec.doi ? 'https://doi.org/' + rec.doi : '';
+  if (rec.pmc && !forceArticle) return 'https://pmc.ncbi.nlm.nih.gov/articles/' + rec.pmc + '/';   // PMC 有免費全文就直接開 PMC
   if (CONFIG.library.fulltextMode === 'direct' || !doi || isOA(rec)) return doi || pm;
   const r = routeFor(rec, forceArticle);
   if (r.kind === 'erm') return ermJournalLink(r.entry);
@@ -941,7 +954,7 @@ function recHTML(rec){
   tags.push('<span class="tag id">PMID ' + esc(rec.pmid) + '</span>');
   if (rec.doi) tags.push('<a class="tag id" target="_blank" rel="noopener" title="出版社原站（不經圖書館）" href="https://doi.org/' + esc(rec.doi) + '">DOI ' + esc(rec.doi) + '</a>');
   const hasAbs = rec.abstractParts && rec.abstractParts.length;
-  const primaryLabel = isOA(rec) && CONFIG.library.fulltextMode !== 'direct' ? '全文（免費）'
+  const primaryLabel = rec.pmc ? '全文（PMC 免費）' : isOA(rec) && CONFIG.library.fulltextMode !== 'direct' ? '全文（免費）'
     : h && h.status === 'no' ? '試試圖書館'
     : route.kind === 'erm' ? '圖書館全文（' + esc(platformName(route.entry)) + '）'
     : route.kind === 'ebsco' ? '圖書館全文（EBSCO）'
@@ -959,7 +972,7 @@ function recHTML(rec){
     (route.kind === 'erm' || route.kind === 'clinicalkey' || route.kind === 'ebsco' || route.kind === 'ovid' || viaCK) && rec.doi ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改走出版社網站（經圖書館代理；若圖書館只訂集成平台，可能顯示未訂閱）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '',
     (route.kind === 'article' || route.kind === 'ovid') && route.entry && ermJournalLink(route.entry) && !isOA(rec) ? '<a class="btn lib soft" target="_blank" rel="noopener" title="由 ERM 開啟本刊所在平台（Ovid 的 ERM 連結不經代理，院外可能會要求登入）" href="' + esc(ermJournalLink(route.entry)) + '">從 ERM 開本刊</a>' : '',
     '<a class="btn" target="_blank" rel="noopener" href="' + esc(pm) + '">PubMed</a>',
-    rec.pmc ? '<a class="btn" target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/' + esc(rec.pmc) + '/">PMC 免費全文</a>' : '',
+    rec.pmc && rec.doi ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改開出版社網站（經圖書館代理）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '',
     rec.oa && !rec.pmc ? '<a class="btn oa" target="_blank" rel="noopener" title="OpenAlex／Unpaywall 找到的合法免費全文" href="' + esc(rec.oa) + '">免費版本</a>' : '',
     hasAbs ? '<button type="button" class="btn ghost" data-act="abs" aria-expanded="false">摘要</button>' : '',
     '<button type="button" class="btn ghost" data-act="cite">複製引用</button>',
@@ -997,6 +1010,41 @@ function emptyState(es){
     (hasCJK(S.term) ? '<li>PubMed 只能以英文檢索，中文詞會查不到' + (S.ai ? '；勾選「先請 AI 轉成英文檢索式」再試' : '') + '</li>' : '') +
     '<li>直接編輯上方檢索式後重新查找</li></ul>';
   $('#results').appendChild(li);
+}
+function paintHandoff(){
+  const withAbs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, 10);
+  const bar = $('#handoff-sum'); bar.hidden = !(S.mode !== 'web' && withAbs.length > 0) || !!S.ai;
+  $('#handoff-sum-note').textContent = '會把問題和前 ' + withAbs.length + ' 篇的摘要複製好並開啟 Claude（免費版即可），貼上送出即可看到有標注來源的重點整理。';
+}
+const HANDOFF_TRANSLATE = `你是醫院圖書館的實證醫學檢索專家。下面是一位醫院同仁的臨床問題或臨床情境，請：
+1. 歸納出最值得查證的一個臨床問題，用 PICO 一行說明。
+2. 轉成一條 PubMed 檢索式（英文）：拆成 2–4 個概念，每個概念用 MeSH 詞（[mh]）加自由詞同義詞（[tiab]）以 OR 併列，概念之間用 AND；不要加日期、文獻類型、語言限制；寫在同一行。
+3. 再給 1–2 條替代檢索式（更廣或更精），各附六字內的標籤。
+請用以下格式回答，方便我複製：
+問題：…
+主檢索式：
+（一行）
+替代（標籤）：
+（一行）
+
+臨床問題／情境：
+`;
+const HANDOFF_SUMMARIZE = `你是實證醫學圖書館員。下面是一個臨床問題和一份有編號的 PubMed 文獻清單（含摘要）。請只根據這些摘要，用繁體中文寫 150–250 字的重點整理：每個陳述句都以 [編號] 標注來源，只能引用清單中的編號；不得加入清單以外的資訊，不得推論摘要沒寫的結論；證據彼此不一致時要指出。最後一行寫「最相關：[編號], [編號]」。
+
+`;
+function claudeHandoff(kind){
+  let prompt = '';
+  if (kind === 'translate') {
+    const q = $('#q').value.trim(); if (!q) { $('#q').focus(); showHint('先在上面輸入你的問題或臨床情境，再按這個按鈕。'); return; }
+    prompt = HANDOFF_TRANSLATE + q;
+  } else {
+    const recs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, 10); if (!recs.length) return;
+    prompt = HANDOFF_SUMMARIZE + '臨床問題：' + (S.question || S.term) + '\n\n文獻清單：\n' + recs.map(r => '[' + r.n + '] ' + r.title + '（' + [r.journal, r.year].filter(Boolean).join(', ') + '；PMID ' + r.pmid + '）\n摘要：' + r.abstractParts.map(p => (p.label ? p.label + ': ' : '') + p.text).join(' ').slice(0, 1500)).join('\n\n');
+  }
+  const url = prompt.length < 3500 ? 'https://claude.ai/new?q=' + encodeURIComponent(prompt) : 'https://claude.ai/new';
+  const w = window.open(url, '_blank');   // 先開視窗保住使用者手勢
+  copyText(prompt).then(ok => showStatus(ok ? '提示已複製到剪貼簿。Claude 開啟後若沒有自動帶入，直接貼上送出即可。' : '無法自動複製到剪貼簿，請改用電腦瀏覽器再試。', ''));
+  if (!w) showStatus('瀏覽器擋下了新視窗；提示已複製，請自行開啟 claude.ai 貼上。', '');
 }
 function paintAIPanel(){
   const withAbs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, 10);
@@ -1130,7 +1178,7 @@ async function search(opts = {}){
     await Promise.all([S.pmProbe, S.aiProbe]);
     if (fresh) {
       S.records = []; S.retstart = 0; S.count = 0; if (!opts.keepTranslation) S.translation = null;
-      $('#results').innerHTML = ''; $('#aipanel').hidden = true; $('#more-wrap').hidden = true; $('#firstnote').hidden = true;
+      $('#results').innerHTML = ''; $('#aipanel').hidden = true; $('#handoff-sum').hidden = true; $('#more-wrap').hidden = true; $('#firstnote').hidden = true;
       $('#ai-sum').hidden = true; $('#ai-disc').hidden = true; $('#ai-action').hidden = false;
       $('#summarize').disabled = false; $('#summarize').textContent = '請 AI 整理重點（只依據上列文獻的摘要）';
       hideHint();
@@ -1160,7 +1208,7 @@ async function search(opts = {}){
           renderRecords(recs, S.records.length); S.records.push(...recs); S.retstart += es.ids.length;
         } else if (!S.records.length) emptyState(es);
         $('#more-wrap').hidden = !(S.retstart < S.count);
-        paintAIPanel();
+        paintAIPanel(); paintHandoff();
         return;
       } catch (e) {
         if (!(e instanceof TypeError)) throw e;   // 真正的查詢錯誤照常顯示
@@ -1208,6 +1256,8 @@ $('#go').addEventListener('click', () => {
   search({ fresh: true, rawTerm: applyFilters(q) });
 });
 initGuided();
+$('#claude-translate').addEventListener('click', () => claudeHandoff('translate'));
+$('#claude-summarize').addEventListener('click', () => claudeHandoff('summarize'));
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); search({ fresh: true }); } });
 $('#more').addEventListener('click', () => search({ fresh: false }));
 $('#rerun').addEventListener('click', () => { const t = $('#term').value.trim(); if (t) search({ fresh: true, rawTerm: t }); });
@@ -1281,6 +1331,20 @@ $('#login-link').href = CONFIG.library.loginUrl;
 
 S.pmProbe = probePubMed();
 S.aiProbe = probeAI();
+
+// 由網址參數帶入查詢（給「找文獻 AI 助理」或書籤用）：?q=檢索式&pt=sr|rct|guideline&yr=5&sort=pub_date&humans=1
+(function fromUrl(){
+  const sp = new URLSearchParams(location.search); const q = (sp.get('q') || '').trim(); if (!q) return;
+  const PT = { sr: '(systematic review[pt] OR meta-analysis[pt] OR systematic[sb])', rct: 'randomized controlled trial[pt]', guideline: '(practice guideline[pt] OR guideline[pt])' };
+  if (PT[sp.get('pt')]) $('#pt').value = PT[sp.get('pt')];
+  if (['1', '3', '5', '10'].includes(sp.get('yr'))) $('#yr').value = sp.get('yr');
+  if (sp.get('sort') === 'pub_date') $('#sort').value = 'pub_date';
+  if (sp.get('humans') === '1') $('#humans').checked = true;
+  $('#q').value = q;
+  if (sp.get('from') === 'ai') showHint('這條檢索式由「找文獻 AI 助理」產生，已完整帶入；查完後可在下方修改重查。');
+  S.question = sp.get('question') || q;
+  search({ fresh: true, rawTerm: applyFilters(q) });
+})();
 </script>
 </body>
 </html>
