@@ -30,8 +30,11 @@
   <h1>找文獻</h1>
   <p class="lead">Claude 版　從臨床問題到圖書館全文</p>
 
-  <button class="btn" id="open" type="button">在瀏覽器開啟找文獻</button>
-  <p class="status" id="status">正在為你開啟…</p>
+  <button class="btn" id="open" type="button">方式 A：在瀏覽器開啟（一般網址）</button>
+  <p class="status">若跳到 Claude App，請回到這一頁改試下面兩個：</p>
+  <button class="btn" id="open-b" type="button" style="margin-top:10px;background:#E4F0EC">方式 B：以 Safari 專用方式開啟</button>
+  <button class="btn" id="open-c" type="button" style="margin-top:10px;background:#E4F0EC">方式 C：以編碼網址開啟</button>
+  <p class="status" id="status">請依序試 A → B → C，記下哪一個是留在瀏覽器裡開啟的。</p>
 
   <div class="box">
     <p><strong>如果跳到了 Claude App</strong>：請點手機螢幕左上角的「◀ Safari」或右上角的「claude.ai ▸」回到瀏覽器，之後 iPhone／iPad 就會固定用瀏覽器開啟。連接器在 App 內不會運作，一定要在瀏覽器裡使用。</p>
@@ -47,11 +50,12 @@
   document.getElementById('url').textContent = TARGET;
   // 用程式導向而不是超連結：iOS 的「通用連結」只在使用者點擊連結時才會把網址交給 App，
   // 由程式發起的導向會留在瀏覽器裡。
-  const go = () => { location.href = TARGET; };
-  document.getElementById('open').addEventListener('click', go);
-  setTimeout(go, 400);
-  // 若三秒後仍停在本頁（例如被 App 攔走又切回來），提示改用按鈕
-  setTimeout(() => { document.getElementById('status').textContent = '沒有自動開啟？請按上面的按鈕，或複製下方網址貼到瀏覽器。'; }, 3000);
+  // A：一般網址（程式導向）
+  document.getElementById('open').addEventListener('click', () => { location.href = TARGET; });
+  // B：Safari 專用的 x-safari-https 方式（iOS 會視同在網址列輸入，通常不會交給 App）
+  document.getElementById('open-b').addEventListener('click', () => { location.href = TARGET.replace(/^https:\/\//, 'x-safari-https://'); });
+  // C：把路徑的一個字母改成百分比編碼，讓 iOS 的 App 連結比對不到，但伺服器仍能解讀
+  document.getElementById('open-c').addEventListener('click', () => { location.href = TARGET.replace('/public/artifacts/', '/public/artif%61cts/'); });
 </script>
 </body>
 </html>
