@@ -29,10 +29,10 @@
  */
 const API = '/api/ai';   // 中繼站的路徑；其餘網址一律當成網站檔案
 
-const VERSION = '2.8 (2026-09) / Pages';
+const VERSION = '3.0 (2026-09) / Pages';
 // 提示詞版本。改動任何提示詞就把它加一 —— 快取鍵含這個版本，舊的結果會自動作廢。
 // （之前改了提示詞卻沒換快取鍵，同一個問題一直回舊的短檢索式，改什麼都看不出效果。）
-const PROMPT_V = 'p4';
+const PROMPT_V = 'p5';
 
 /* ---------------- 提示詞（只在這裡，網頁不能改） ---------------- */
 const SYS_TRANSLATE = `你是醫院圖書館的實證醫學檢索專家。使用者會用中文或英文輸入一個臨床問題，或是一段臨床情境（病人描述、床邊遇到的狀況、開會要準備的題目）。
@@ -40,12 +40,29 @@ const SYS_TRANSLATE = `你是醫院圖書館的實證醫學檢索專家。使用
 請「逐行」輸出下列欄位，一行一個，欄位名稱後面接冒號。不要用 JSON、不要用 markdown、不要加任何其他說明文字：
 
 QUERY: 一條英文 PubMed 檢索式（最重要，務必放在第一行）
-QUESTION: 歸納後的臨床問題（繁體中文，一句完整的話，25–60 字，要把族群、介入或暴露、結果都講出來，不要只寫幾個關鍵詞）
+QUESTION: 把使用者的話收斂成一句直接的臨床問句（繁體中文，20–40 字）
 TYPE: therapy 或 diagnosis 或 prognosis 或 etiology 或 other
 PICO: P=… | I=… | C=… | O=…（每欄用繁體中文具體描述，例如 P=65 歲以上、接受髖部骨折手術的住院病人；沒有的欄位留空）
 SUGGEST: sr 或 rct 或 guideline（不確定就留空）
-ALT: 標籤 | 另一條英文檢索式　（最多兩行；標籤 6 字內，例如「更廣」「更精準」）
-NOTE: 兩到三句繁體中文：這是哪一類臨床問題、你把它拆成哪幾個概念、建議先看哪一類文獻，以及這樣檢索可能會漏掉什麼
+ALT: 標籤 | 另一條英文檢索式　（輸出三行，三個真的不一樣的切入角度）
+NOTE: 兩到三句繁體中文，講這個臨床題目本身現在的證據長什麼樣
+
+QUESTION 的寫法：
+- 寫成同事之間口頭會講的那種話，一看就知道在問什麼。
+- 不要公文腔。禁止出現「是否有顯著成效」「對於…而言」「進行探討」「之相關性」「具有一致性」這類句型。
+- 使用者的問題本來就清楚時，照他的意思收一句就好，不要為了湊字數硬加修飾語。
+
+ALT 的寫法（這三顆按鈕是使用者換角度的入口，標籤寫得好不好決定他會不會按）：
+- 標籤寫「這一版換了什麼」，12 字內，要讓人一看就知道按下去會拿到什麼不同的東西。
+- 好標籤講的是臨床上的切換，例如：限 HFrEF、改看心血管死亡、排除糖尿病族群、只看非藥物介入、限兒童、限近五年、加上成本考量。
+- 禁止用「更廣」「更精準」「更廣泛」「更嚴謹」「擴大範圍」「縮小範圍」這類只講鬆緊、不講內容的標籤。
+- 三條檢索式要真的不同（換族群、換結果指標、換介入手段、換研究角度），不能只是多加或少加幾個同義詞。
+
+NOTE 的寫法：
+- 講這個臨床題目目前的證據大致長什麼樣：主軸是什麼、爭議點在哪、臨床上查的時候要注意什麼。
+- 知道關鍵的大型試驗、統合分析或指引名稱就寫出來（例如 DAPA-HF、EMPEROR-Reduced、HELP 計畫）；把握不大就不要提名字，改講證據型態（例如以小型單中心試驗為主、以觀察性研究為主）。
+- 不要寫具體數字（百分比、OR、HR、信賴區間）。那些要看下面實際查到的文獻，不是由你回憶。
+- 禁止描述檢索技術：不要寫「拆成幾個核心概念」「用了 MeSH 加自由詞」「這樣可能會漏掉什麼」。使用者要的是對題目的判斷，不是檢索教學。
 
 QUERY 的寫法：
 - 拆出 2–4 個核心概念；每個概念用 MeSH 詞（[mh]）加上 3–5 個同義自由詞（[tiab]）以 OR 併列，概念之間用 AND 連接。
@@ -60,13 +77,14 @@ NOTSEARCHABLE: 一句繁體中文說明為什麼不適合用 PubMed 查
 
 範例輸出：
 QUERY: (Hip Fractures[mh] OR hip fracture[tiab] OR femoral neck fracture[tiab] OR proximal femoral fracture[tiab] OR hip surgery[tiab]) AND (Delirium[mh] OR delirium[tiab] OR acute confusion[tiab] OR postoperative confusion[tiab] OR acute confusional state[tiab]) AND (prevention[tiab] OR prophylaxis[tiab] OR preventive[tiab] OR multicomponent intervention[tiab] OR nonpharmacological[tiab])
-QUESTION: 老年髖部骨折術後如何預防譫妄？
+QUESTION: 老年髖部骨折手術後的病人，有哪些做法能降低譫妄的發生率？
 TYPE: therapy
 PICO: P=65 歲以上、接受髖部骨折手術的住院病人 | I=術前或術後的預防性介入（多成分照護、藥物、麻醉方式） | C=常規照護 | O=術後譫妄的發生率與嚴重度
 SUGGEST: sr
-ALT: 更廣 | (hip fracture[tiab] OR femoral fracture[tiab]) AND (delirium[tiab] OR confusion[tiab])
-ALT: 更精準 | (Hip Fractures[mh]) AND (Delirium[mh]) AND (multicomponent intervention[tiab] OR care bundle[tiab] OR orthogeriatric[tiab])
-NOTE: 這是治療／預防型問題，拆成「髖部骨折」「譫妄」「預防性介入」三個概念。建議先看系統性回顧與統合分析，再回頭補隨機試驗。若只用 [mh] 會漏掉尚未編入 MeSH 的新文獻，所以每個概念都另外加了自由詞。`;
+ALT: 只看非藥物介入 | (Hip Fractures[mh] OR hip fracture[tiab]) AND (Delirium[mh] OR delirium[tiab]) AND (multicomponent intervention[tiab] OR care bundle[tiab] OR orthogeriatric[tiab] OR reorientation[tiab] OR early mobilization[tiab])
+ALT: 改看藥物預防 | (Hip Fractures[mh] OR hip fracture[tiab]) AND (Delirium[mh] OR delirium[tiab]) AND (melatonin[tiab] OR ramelteon[tiab] OR dexmedetomidine[tiab] OR haloperidol[tiab] OR antipsychotic[tiab])
+ALT: 改看麻醉方式 | (Hip Fractures[mh] OR hip fracture[tiab]) AND (Delirium[mh] OR delirium[tiab]) AND (Anesthesia, Spinal[mh] OR spinal anesthesia[tiab] OR regional anesthesia[tiab] OR general anesthesia[tiab] OR nerve block[tiab])
+NOTE: 這個題目的證據以多成分介入為主軸，HELP（Hospital Elder Life Program）系列與後續的統合分析大致支持它有效，是目前指引的主要依據。藥物預防一直有爭議：melatonin 與 dexmedetomidine 的試驗結果不一致，抗精神病藥物用於預防多半沒有站得住腳的效果。麻醉方式（脊椎 vs 全身）近年有大型隨機試驗，若同事是為了這一點而查，要留意各試驗評估譫妄的工具不一定相同。`;
 
 const SYS_SUMMARIZE = `你是實證醫學圖書館員。使用者會給你一個問題，以及一份有編號的文獻清單（含摘要）。
 請只根據這些摘要，用繁體中文寫 400–500 字的重點整理（全文絕不超過 550 字，每段 120–170 字；超過會被系統截斷），分成三段，每段以下列小標開頭（小標單獨一行，後面接內容）：
@@ -151,6 +169,48 @@ async function addUsage(env, n) {
     await env.QUOTA.put(key, String(Math.round(cur + n)), { expirationTtl: 3 * 86400 });
   } catch (e) {}
 }
+// 使用統計：每天一把鍵，只存次數，不存任何能指向使用者的東西。
+// o=開啟頁面（網頁載入時的 ping）、t=轉檢索式、s=重點整理、c=其中用快取回答的（沒花額度）、
+// q=當天出現過的問題雜湊前綴（用來估「不重複問題數」，存的是雜湊不是問題本身，且有上限）。
+const DAY_KEY = d => 'd:' + d;
+const STATS_TTL = 70 * 86400;          // 留 70 天，夠看 30 天趨勢
+const Q_MAX = 800;                     // 雜湊前綴最多存這麼多個，避免這筆值無限長大
+async function statsGet(env, day) {
+  if (!env.QUOTA) return null;
+  try { const v = await env.QUOTA.get(DAY_KEY(day)); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+}
+async function bumpStats(env, patch) {
+  if (!env.QUOTA) return;
+  try {
+    const day = today();
+    const cur = (await statsGet(env, day)) || {};
+    const out = {
+      o: (+cur.o || 0) + (+patch.o || 0),
+      t: (+cur.t || 0) + (+patch.t || 0),
+      s: (+cur.s || 0) + (+patch.s || 0),
+      c: (+cur.c || 0) + (+patch.c || 0),
+      q: Array.isArray(cur.q) ? cur.q : []
+    };
+    if (patch.q && out.q.length < Q_MAX && !out.q.includes(patch.q)) out.q.push(patch.q);
+    await env.QUOTA.put(DAY_KEY(day), JSON.stringify(out), { expirationTtl: STATS_TTL });
+  } catch (e) {}                        // 統計寫不進去就算了，查詢不能因此壞掉
+}
+// 往回抓 n 天（含今天）的統計，回傳每日一筆（新到舊）
+async function statsDays(env, n) {
+  if (!env.QUOTA) return [];
+  const days = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    days.push(d);
+  }
+  const vals = await Promise.all(days.map(d => statsGet(env, d)));
+  return days.map((d, i) => ({ day: d, ...(vals[i] || { o: 0, t: 0, s: 0, c: 0, q: [] }) }));
+}
+const sumStats = rows => rows.reduce((a, r) => ({
+  o: a.o + (+r.o || 0), t: a.t + (+r.t || 0), s: a.s + (+r.s || 0),
+  c: a.c + (+r.c || 0), q: a.q + ((r.q || []).length)
+}), { o: 0, t: 0, s: 0, c: 0, q: 0 });
+
 async function cacheGet(env, key) {
   if (!env.QUOTA) return null;
   try { const v = await env.QUOTA.get('c:' + key); return v ? JSON.parse(v) : null; } catch (e) { return null; }
@@ -311,6 +371,21 @@ function extractJSON(text) {
   if (m) { try { return { query: JSON.parse('"' + m[1] + '"') }; } catch (e) { return { query: m[1] }; } }
   return null;
 }
+// 模型偶爾會給兩條幾乎一樣的替代檢索式，或給一條和主檢索式相同的。
+// 那種按鈕按下去結果沒變，比沒有按鈕更讓人困惑，所以在這裡濾掉。
+function dedupeAlts(alts, mainQuery) {
+  const norm = q => String(q || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const seen = new Set([norm(mainQuery)]);
+  const out = [];
+  for (const a of alts) {
+    const k = norm(a.query);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(a);
+    if (out.length === 3) break;
+  }
+  return out;
+}
 function normalizeTranslation(j) {
   const oneLine = q => tidyQuery(q);
   const pico = j.pico && typeof j.pico === 'object' ? j.pico : {};
@@ -319,8 +394,10 @@ function normalizeTranslation(j) {
     question: String(j.question || '').slice(0, 300),
     type: ['therapy', 'diagnosis', 'prognosis', 'etiology', 'prediction', 'other'].includes(j.type) ? j.type : '',
     pico: ['P', 'I', 'C', 'O'].map(k => (pico[k] ? k + '：' + String(pico[k]).slice(0, 120) : '')).filter(Boolean),
-    alternatives: (Array.isArray(j.alternatives) ? j.alternatives : []).filter(a => a && a.query).slice(0, 3)
-      .map(a => ({ label: String(a.label || '替代').slice(0, 12), query: oneLine(a.query) })).filter(a => looksLikeQuery(a.query)),
+    alternatives: dedupeAlts((Array.isArray(j.alternatives) ? j.alternatives : [])
+      .filter(a => a && a.query)
+      .map(a => ({ label: String(a.label || '替代').slice(0, 12), query: oneLine(a.query) }))
+      .filter(a => looksLikeQuery(a.query)), oneLine(j.query)),
     suggest: ['sr', 'rct', 'guideline'].includes(j.suggest) ? j.suggest : '',
     note: String(j.note || '').slice(0, 400)
   };
@@ -332,6 +409,7 @@ async function doTranslate(env, body) {
   if (!question) return fail('bad_request', '沒有收到問題', 400);
   const key = await hashKey('t|' + PROMPT_V + '|' + question);   // 提示詞一改，快取自動換新
   const hit = await cacheGet(env, key);
+  await bumpStats(env, { t: 1, q: key.slice(0, 8), c: hit && looksLikeQuery(hit.query) ? 1 : 0 });
   if (hit && looksLikeQuery(hit.query)) return json({ ok: true, cached: true, translation: hit });   // 快取也要通過檢查才能用
 
   const base = [{ role: 'system', content: SYS_TRANSLATE }, { role: 'user', content: question }];
@@ -343,7 +421,7 @@ async function doTranslate(env, body) {
   for (let i = 0; i < 3; i++) {                                        // 吐不出 JSON、或檢索式不能用，就再試一次
     // 提醒併進同一則 user 訊息：有些模型（如 Gemma）的對話樣板不接受連續兩則 user 訊息
     const messages = [base[0], { role: 'user', content: base[1].content + (i === 0 ? '' : NUDGE) }];
-    out = await runChain(env, pickModel(body, env.MODEL_TRANSLATE), messages, i === 0 ? 1600 : 1800);   // 檢索式長、同義詞多，留足空間
+    out = await runChain(env, pickModel(body, env.MODEL_TRANSLATE), messages, i === 0 ? 2100 : 2300);   // 檢索式長、又要三條替代式，留足空間
     await addUsage(env, out.neurons);
     lastText = out.text;
     tried.push({ model: out.model, stop: out.stop, text: String(out.text || '').slice(0, 500) });
@@ -385,6 +463,7 @@ async function doSummarize(env, body) {
 
   const key = await hashKey('s|' + PROMPT_V + '|' + question + '|' + recs.map(r => r.n + ':' + r.abstract.length + ':' + r.title.slice(0, 40)).join('|'));
   const hit = await cacheGet(env, key);
+  await bumpStats(env, { s: 1, c: hit ? 1 : 0 });
   if (hit) return json({ ok: true, cached: true, text: hit });
 
   const list = recs.map(r => '[' + r.n + '] ' + r.title + (r.meta ? '（' + r.meta + '）' : '') + '\n摘要：' + r.abstract).join('\n\n');
@@ -416,8 +495,15 @@ async function doSummarize(env, body) {
 }
 
 /* ---------------- 首頁與自我測試 ---------------- */
-function statusPage(env, used) {
+function statusPage(env, used, stats) {
   const budget = +env.DAILY_NEURONS || 9200;
+  const nf = n => (+n || 0).toLocaleString('en-US');
+  const rows30 = (stats && stats.length) ? stats : [];
+  const d0 = rows30[0] || { o: 0, t: 0, s: 0, c: 0, q: [] };
+  const w7 = sumStats(rows30.slice(0, 7));
+  const w30 = sumStats(rows30);
+  const useLine = r => nf(r.o) + ' 次開啟　' + nf(r.t) + ' 次轉檢索式　' + nf(r.s) + ' 次重點整理'
+    + (r.c ? '（其中 ' + nf(r.c) + ' 次用快取回答，沒花額度）' : '');
   const rows = [
     ['版本', VERSION + '　提示詞 ' + PROMPT_V],
     ['Workers AI 綁定（AI）', env.AI ? '✅ 已綁定' : '❌ 未綁定 —— 請到 Pages 專案 Settings → Bindings → Add → Workers AI，變數名稱填 AI，再重新部署'],
@@ -425,6 +511,9 @@ function statusPage(env, used) {
     ['允許的網站', env.ALLOWED_ORIGINS ? String(env.ALLOWED_ORIGINS) : '✅ 只允許本站自己呼叫（預設，不必設定）'],
     ['存取碼（ACCESS_CODE，選用）', env.ACCESS_CODE ? '已設定' : '未設定'],
     ['今日已用（估計）', used == null ? '未統計（未綁 KV）' : used + ' / ' + budget + ' neurons'],
+    ['今日使用', env.QUOTA ? useLine(d0) + '　不重複問題 ' + nf((d0.q || []).length) + ' 個' : '未統計（未綁 KV）'],
+    ['最近 7 天', env.QUOTA ? useLine(w7) : '未統計（未綁 KV）'],
+    ['最近 30 天', env.QUOTA ? useLine(w30) : '未統計（未綁 KV）'],
     ['轉檢索式模型', env.MODEL_TRANSLATE || MODELS[0].id],
     ['重點整理模型', env.MODEL_SUMMARY || MODELS[0].id]
   ];
@@ -438,6 +527,13 @@ button.alt{background:#fff;color:#114A3E}pre{white-space:pre-wrap;word-break:bre
 code{background:#F5F8F6;padding:1px 5px;border-radius:4px;font-size:12.5px}</style></head><body>
 <h1>找文獻 — AI 中繼站</h1><p class="sub">台南市立醫院圖書館　這是中繼站的狀態頁，給管理者看的；要查文獻請回<a href="/">首頁</a>。</p>
 <table>${rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('')}</table>
+${env.QUOTA ? `<p style="margin-top:26px"><strong>每日使用</strong>（最近 14 天，新到舊）：</p>
+<table><tr><td style="width:auto;color:#16262E">日期</td><td>開啟</td><td>轉檢索式</td><td>重點整理</td><td>不重複問題</td></tr>
+${rows30.slice(0, 14).map(r => '<tr><td style="width:auto">' + r.day + '</td><td>' + nf(r.o) + '</td><td>' + nf(r.t) + '</td><td>' + nf(r.s) + '</td><td>' + nf((r.q || []).length) + '</td></tr>').join('')}</table>` : ''}
+<p style="font-size:13px;color:#5B6A70;margin-top:14px"><strong>這些數字是次數，不是人數。</strong>中繼站沒有帳號、沒有 cookie，也不記錄 IP 或任何身分，所以無法分辨是同一個人用了十次、還是十個人各用一次。<br>
+統計範圍也只到「有人打開找文獻」與「用到 AI 的查詢」為止：只打英文關鍵詞、沒用到 AI 的查詢不會出現在這裡，點「圖書館全文」的次數請看 ERM 的點閱統計（那邊才是綁真實帳號的數字）。<br>
+日期以 UTC 計，台灣時間每天早上 8 點換日，和額度重置同一個時刻。數字為估計值：同一秒內的多筆可能只記到一筆。</p>
+
 <p style="margin-top:22px"><strong>自我測試</strong>（會實際用掉一點額度）：</p>
 <p><input id="qq" value="老年髖部骨折術後如何預防譫妄？" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #D5DFDA;border-radius:6px;box-sizing:border-box"></p>
 <p style="font-size:14px">模型：<select id="mm" style="font:inherit;padding:6px 8px;border:1px solid #D5DFDA;border-radius:6px">
@@ -488,13 +584,14 @@ async function api(request, env, url) {
 
     if (request.method === 'GET') {
       if (url.pathname === API + '/ping') {                 // 網頁開啟時的探測：不呼叫 AI，不花額度
+        await bumpStats(env, { o: 1 });                     // 順便當成「有人打開找文獻」的計次
         const used = await usedToday(env);
         const budget = +env.DAILY_NEURONS || 9200;
         return json({ ok: true, version: VERSION, ai: !!env.AI, kv: !!env.QUOTA, used, budget,
                       summaryOff: used != null && used >= budget * 0.85 }, 200, c.headers);
       }
-      const used = await usedToday(env);
-      return new Response(statusPage(env, used), { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+      const [used2, stats] = await Promise.all([usedToday(env), statsDays(env, 30)]);
+      return new Response(statusPage(env, used2, stats), { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
     }
 
     if (request.method !== 'POST') return fail('method', '只接受 POST', 405, c.headers);
