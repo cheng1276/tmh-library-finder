@@ -398,8 +398,8 @@
           <p class="small">中繼站就是同一個網站裡的 <code>_worker.js</code>（Cloudflare Pages）。要讓它運作，只需在 Pages 專案的 Settings → Bindings → Add → Workers AI，變數名稱填 <code>AI</code>，再重新部署一次。狀態頁在 <a href="/api/ai" target="_blank" rel="noopener">/api/ai</a>。中繼站不在時，中文轉檢索式與重點整理會停用，英文關鍵詞查詢與圖書館全文完全不受影響。</p>
           <label class="chk" style="margin:6px 0 0"><input type="checkbox" id="set-auto" checked> 查完自動做 AI 重點整理</label>
         </fieldset>
-        <label class="field">AI 重點整理納入的篇數（依相關性取前 N 篇）。送給 AI 的摘要總字元是固定的，由篇數平分：<strong>10 篇＝每篇約 2,400 字元</strong>，多數 PubMed 摘要可以完整帶入；20 篇＝每篇約 1,200 字元，涵蓋面較廣但多數摘要會被切掉結果與結論。額度成本兩者相近
-          <select id="set-sumn"><option selected>10</option><option>20</option></select>
+        <label class="field">AI 重點整理納入的篇數（依相關性取前 N 篇）。送給 AI 的摘要總字元固定，篇數愈多、每篇分到的愈少：<strong>20 篇＝每篇上限約 1,200 字元</strong>，涵蓋面較廣；10 篇＝每篇約 2,400 字元，單篇讀得較完整。短摘要不受上限影響，一律完整帶入。篇數多的那一邊額度成本較高
+          <select id="set-sumn"><option>10</option><option selected>20</option></select>
         </label>
         <label class="field">EBSCO MEDLINE 資料庫代碼（「MEDLINE電子期刊」的單篇連結用；mnh = MEDLINE with Full Text、mdc = MEDLINE Complete、cmedm = MEDLINE）<input id="set-ebsco" value="mnh"></label>
         <label class="field">代理引擎埠號（ERM「出版社路徑」連結所導向的埠號；目前為 3001）<input id="set-port" inputmode="numeric" value="3001"></label>
@@ -475,17 +475,16 @@ const CONFIG = {
     endpoint: '/api/ai',
     accessCode: '',               // 中繼站若設了存取碼就填在這裡（公開頁面上的存取碼只能擋掃描器，不是機密）
     autoSummary: true,            // 查完自動做重點整理（有中繼站時）
-    summaryN: 10,                 // 重點整理最多納入前幾篇（依相關性排序的前 N 篇）
-                                  // 預設 10 不是 20：總字元是固定的，20 篇時每篇只剩 1,200 字元，
-                                  // 多數 PubMed 摘要會在 Results 段被切斷，AI 讀得到研究設計卻讀不到數字，
-                                  // 整理出來就空泛。10 篇時每篇 2,400 字元，多數摘要可完整帶入。
-                                  // 想要涵蓋面而不是深度時，在「設定」改回 20。
-    summaryChars: 40000           // 送給 AI 的摘要「總」字元上限（不是每篇平分）。
-                                  // 每篇先給完整摘要（單篇最多 8,000 字元，足以容納 Cochrane 的長摘要），
-                                  // 只有全部加起來超過這個總量時，才從最長的幾篇砍起，短的不動。
-                                  // 實測 10 篇一般摘要合計約 1 萬字元，通常碰不到上限＝等於不限字數。
+    summaryN: 20,                 // 重點整理最多納入前幾篇（依相關性排序的前 N 篇）
+                                  // 回到 20：比對舊的 Claude 版才發現，它當年每篇只帶 700 字元、
+                                  // 一半以上的摘要都被砍在 Methods，寫出來仍然比較好——可見瓶頸是模型，
+                                  // 不是摘要長度。既然長度不是瓶頸，20 篇的涵蓋面就比 10 篇的深度值得。
+    summaryChars: 24000           // 送給 AI 的摘要「總」字元上限（不是每篇平分）。
+                                  // 規則見 abstractBudget：每篇先給完整摘要，只有總量超過上限時，
+                                  // 才從最長的幾篇砍到同一個水位，短的原封不動。
+                                  // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.0（2026-09）'
+  version: '5.1（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1084,7 +1083,7 @@ function renderRecords(recs, start){
   $('#actbar').hidden = ol.children.length === 0 || CONFIG.library.fulltextMode === 'direct' || !CONFIG.library.activateUrl;
   checkOA(recs);
   // 先把前面幾篇的 DOI 解析好：點「圖書館全文」時就不必再等解析
-  S.records.concat(recs).slice(0, Math.max(10, +CONFIG.ai.summaryN || 10)).forEach(r => { if (needsResolve(r) && !doiCache.has(r.doi)) resolveDOI(r.doi); });
+  S.records.concat(recs).slice(0, Math.max(10, +CONFIG.ai.summaryN || 20)).forEach(r => { if (needsResolve(r) && !doiCache.has(r.doi)) resolveDOI(r.doi); });
 }
 function rerenderAll(){ [...$('#results').children].forEach((li, i) => { const r = S.records[i]; if (r) li.innerHTML = recHTML(r); }); }
 function emptyState(es){
@@ -1095,13 +1094,13 @@ function emptyState(es){
   $('#results').appendChild(li);
 }
 function paintAIPanel(){
-  const N = Math.max(10, +CONFIG.ai.summaryN || 10);
+  const N = Math.max(10, +CONFIG.ai.summaryN || 20);
   const withAbs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, N);
   const byRelay = summaryRelayOn();
   const show = S.src === 'direct' && withAbs.length > 0 && byRelay;
   $('#aipanel').hidden = !show;
   if (!show) return;
-  const n = Math.min(withAbs.length, +CONFIG.ai.summaryN || 10);
+  const n = Math.min(withAbs.length, +CONFIG.ai.summaryN || 20);
   $('#ai-action').hidden = !byRelay;
   $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻；不會加入清單以外的內容。';
 }
@@ -1141,12 +1140,12 @@ function cleanText(t, max){
 async function aiSummarize(){
   const gen = S.gen || 0;                          // 這份整理屬於哪一次查詢
   const stale = () => gen !== (S.gen || 0);        // 使用者已另起新查詢 → 這份整理作廢，不貼回畫面
-  const N = Math.max(4, +CONFIG.ai.summaryN || 10);
+  const N = Math.max(4, +CONFIG.ai.summaryN || 20);
   const recs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, N);
   if (!recs.length) return;
   const valid = new Set(recs.map(r => r.n));
   // 每篇摘要能帶多少字：先給足，總量爆了才砍最長的（見 abstractBudget）。
-  const per = abstractBudget(recs.map(r => absText(r).length), +CONFIG.ai.summaryChars || 40000, 8000);
+  const per = abstractBudget(recs.map(r => absText(r).length), +CONFIG.ai.summaryChars || 24000, 8000);
   const btn = $('#summarize'); btn.disabled = true; btn.textContent = 'AI 整理中…';
   $('#aipanel').hidden = false; $('#ai-action').hidden = false;
   $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + recs.length + ' 筆有摘要的文獻；不會加入清單以外的內容。';
