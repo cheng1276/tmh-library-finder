@@ -355,6 +355,7 @@
     </div>
     <div class="sum" id="ai-sum" hidden></div>
     <p class="disc" id="ai-disc" hidden>這段整理只轉述上列摘要的內容，每句都標注來源編號，點編號會直接開啟該篇的圖書館全文；它不是醫療建議，請務必閱讀原文核實。</p>
+    <p class="disc" id="ai-escalate" hidden>覺得這份整理不夠深入？<button type="button" class="linkish" id="escalate">把同一份文獻交給你自己的 Claude 重做一份</button>（免費帳號即可，不佔圖書館額度）。</p>
   </section>
 
   <div class="actbar" id="actbar" hidden>
@@ -497,7 +498,7 @@ const CONFIG = {
     abstractChars: 900            // 整理重點時每篇摘要最多帶幾個字
   },
   showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '4.4（2026-09）'
+  version: '4.5（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1200,6 +1201,7 @@ function handoffTranslate(){
 function handoffSummarize(){
   const recs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, Math.max(4, +CONFIG.ai.summaryN || 20));
   if (!recs.length) return;
+  $('#handoff-sum').hidden = false;                  // 從「重做一份」進來時，容器原本是收起來的
   const prompt = summaryPrompt(recs);
   copyText(prompt);
   const o = openClaude(CONFIG.handoff.newChatUrl);
@@ -1219,7 +1221,7 @@ function paintAIPanel(){
   $('#aipanel').hidden = !show;
   if (!show) return;
   const n = Math.min(withAbs.length, +CONFIG.ai.summaryN || 20);
-  $('#ai-action').hidden = !byRelay; $('#handoff-sum').hidden = !!byRelay;
+  $('#ai-action').hidden = !byRelay; $('#handoff-sum').hidden = !!byRelay; $('#handoff-summarize').hidden = !!byRelay;
   $('#ai-scope').textContent = byRelay
     ? '只依據目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻；不會加入清單以外的內容。'
     : (S.summaryOff ? '圖書館今天的整理額度已用完（每天早上 8 點重置）。' : '') + '會把目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻（標題、摘要、全文連結）做成一段指令，交給你自己的 Claude 整理；本頁不會傳送任何資料。';
@@ -1259,6 +1261,7 @@ async function aiSummarize(){
       .replace(/\[(\d+)\]/g, (m, x) => valid.has(+x) ? '<a href="#" class="ref" data-ref="' + x + '" title="開啟第 ' + x + ' 篇的圖書館全文（會登記點閱）">[' + x + ']</a>' : '')
       .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
     $('#ai-sum').innerHTML = html; $('#ai-sum').hidden = false; $('#ai-disc').hidden = false; $('#ai-action').hidden = true;
+    $('#ai-escalate').hidden = !(CONFIG.handoff && CONFIG.handoff.enabled);
   } catch (e) {
     if (stale()) return;
     btn.disabled = false; btn.textContent = '再試一次';
@@ -1395,7 +1398,7 @@ async function search(opts = {}){
       $('#results').innerHTML = ''; $('#aipanel').hidden = true; $('#more-wrap').hidden = true; $('#firstnote').hidden = true;
       $('#ai-sum').hidden = true; $('#ai-disc').hidden = true; $('#ai-action').hidden = false;
       $('#summarize').disabled = false; $('#summarize').textContent = '請 AI 整理重點（只依據上列文獻的摘要）';
-      $('#handoff-sum-note').hidden = true; $('#handoff-sum-box').hidden = true; $('#handoff-note').hidden = true;
+      $('#handoff-sum-note').hidden = true; $('#handoff-sum-box').hidden = true; $('#handoff-note').hidden = true; $('#ai-escalate').hidden = true;
       if (!opts.keepHint) hideHint();
       if (rawTerm) {
         S.term = rawTerm; if (!S.question) S.question = question;
@@ -1524,6 +1527,7 @@ $('#strategy').addEventListener('click', e => {
 });
 $('#summarize').addEventListener('click', aiSummarize);
 $('#handoff-summarize').addEventListener('click', handoffSummarize);
+$('#escalate').addEventListener('click', handoffSummarize);
 $('#handoff-translate').addEventListener('click', handoffTranslate);
 $('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (relayBase() ? '　AI：圖書館中繼站（Cloudflare Workers AI）' : '　AI：交給使用者自己的 Claude');
 // 中繼站在本站時，順手把狀態頁連結指對
