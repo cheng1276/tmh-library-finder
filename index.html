@@ -495,9 +495,10 @@ const CONFIG = {
                                   // 多數 PubMed 摘要會在 Results 段被切斷，AI 讀得到研究設計卻讀不到數字，
                                   // 整理出來就空泛。10 篇時每篇 2,400 字元，多數摘要可完整帶入。
                                   // 想要涵蓋面而不是深度時，在「設定」改回 20。
-    summaryChars: 24000           // 送給 AI 的摘要總字元上限，由納入的篇數平分：
-                                  // 只有 1 篇就給它整篇（上限 8,000），10 篇各 2,400，20 篇各 1,200。
-                                  // 總量固定，所以改篇數幾乎不影響額度成本。
+    summaryChars: 40000           // 送給 AI 的摘要「總」字元上限（不是每篇平分）。
+                                  // 每篇先給完整摘要（單篇最多 8,000 字元，足以容納 Cochrane 的長摘要），
+                                  // 只有全部加起來超過這個總量時，才從最長的幾篇砍起，短的不動。
+                                  // 實測 10 篇一般摘要合計約 1 萬字元，通常碰不到上限＝等於不限字數。
   },
   // 交棒模式（endpoint 留空時）：把工作交給使用者自己的 Claude 帳號（免費方案即可）。
   // 轉檢索式：開啟 claude.ai/new 並用 ?q= 帶入指令，Claude 回覆本頁的連結（?from=ai&q=檢索式），點了就回來自動查詢。
@@ -510,7 +511,7 @@ const CONFIG = {
                                   //   都用上面的 ai.summaryChars 除以篇數，10 篇時每篇 2,400 字元。）
   },
   showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '4.9（2026-09）'
+  version: '4.10（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1183,8 +1184,8 @@ function translatePrompt(question){
 }
 function summaryPrompt(recs){
   const N = recs.length;
-  const handoffPer = Math.max(700, Math.min(8000, Math.round((+CONFIG.ai.summaryChars || 24000) / Math.max(1, N))));
-  const item = r => {
+  const handoffPer = abstractBudget(recs.map(r => absText(r).length), +CONFIG.ai.summaryChars || 40000, 8000);
+  const item = (r, i) => {
     const pt = (r.pubtypes || []).filter(t => PT_LABEL[t]).slice(0, 2).map(t => PT_LABEL[t]).join('、');
     // 與頁面上「圖書館全文」主按鈕相同的路線；訂閱範圍外的不給圖書館連結（點了也拿不到），改給 PubMed
     const oor = outOfRange(r);
@@ -1192,7 +1193,7 @@ function summaryPrompt(recs){
       : oor ? 'https://pubmed.ncbi.nlm.nih.gov/' + r.pmid + '/' : fulltextHref(r);
     return '[' + r.n + '] ' + cleanText(r.title, 250) + '（' + [r.journal, r.year, pt].filter(Boolean).join('；') + '；PMID ' + r.pmid + '）\n' +
       (oor ? 'PubMed（這一篇不在圖書館的訂閱年份內，需館際合作）：' : '全文：') + link + '\n' +
-      '摘要：' + cleanText(absText(r), handoffPer);
+      '摘要：' + cleanText(absText(r), handoffPer[i]);
   };
   return '你是實證醫學圖書館員。下面是我用台南市立醫院圖書館「找文獻」查 PubMed 得到、依相關性排序的前 ' + N + ' 篇文獻（含摘要與全文連結）。\n' +
     '請只根據這些摘要，用繁體中文寫 400–500 字的重點整理，分成三段，每段以小標開頭（小標單獨一行）：\n' +
@@ -1255,6 +1256,23 @@ function paintAIPanel(){
     ? '只依據目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻；不會加入清單以外的內容。'
     : (S.summaryOff ? '圖書館今天的整理額度已用完（每天早上 8 點重置）。' : '') + '會把目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻（標題、摘要、全文連結）做成一段指令，交給你自己的 Claude 整理；本頁不會傳送任何資料。';
 }
+// 每篇摘要能帶多少字。原則：先讓每一篇都拿到完整摘要，只有在總量超過上限時才砍，
+// 而且不是齊頭砍——齊頭砍會連短摘要一起砍掉、長的也還是不夠。改用水位法：
+// 找一個水位，低於水位的原封不動，高於水位的砍到水位，剛好塞滿總量上限。
+// 實測 10 篇一般摘要加起來約 1 萬字元，根本碰不到上限；只有 Cochrane 這種
+// 一篇 6,000 字元的系統性回顧湊在一起時才會啟動。
+function abstractBudget(lens, total, perMax){
+  const cap = Math.max(200, perMax || 8000);
+  const L = lens.map(n => Math.min(Math.max(0, n | 0), cap));
+  if (L.reduce((a, b) => a + b, 0) <= total) return L;       // 塞得下就全給
+  let lo = 0, hi = cap;                                       // 二分找水位：塞得下的最大整數水位
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi + 1) / 2);
+    if (L.reduce((a, n) => a + Math.min(n, mid), 0) <= total) lo = mid; else hi = mid - 1;
+  }
+  const lvl = Math.max(400, lo);                               // 再擠也保留 400 字元，不讓任何一篇整篇消失
+  return L.map(n => Math.min(n, lvl));
+}
 // 把文字整理成安全的純文字：去掉控制字元與被截斷的代理字元（截斷摘要時可能切到 emoji 或特殊符號的一半）
 // 把整理文字裡的 [編號] 變成可點的連結。
 // 模型常把多個來源寫成 [2, 4, 13]，舊版只認得單一數字的 [5]，整組就變成純文字了。
@@ -1278,20 +1296,19 @@ async function aiSummarize(){
   const recs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, N);
   if (!recs.length) return;
   const valid = new Set(recs.map(r => r.n));
-  // 每篇摘要能帶多少字：篇數少就給足，篇數多才縮短。以前不論幾篇一律砍到 900 字元，
-  // 導致「只有一兩篇」時反而把完整的長摘要切成半截，AI 只能就半截內容作答。
-  const per = Math.max(700, Math.min(8000, Math.round((+CONFIG.ai.summaryChars || 24000) / Math.max(1, recs.length))));
+  // 每篇摘要能帶多少字：先給足，總量爆了才砍最長的（見 abstractBudget）。
+  const per = abstractBudget(recs.map(r => absText(r).length), +CONFIG.ai.summaryChars || 40000, 8000);
   const btn = $('#summarize'); btn.disabled = true; btn.textContent = 'AI 整理中…';
   $('#aipanel').hidden = false; $('#ai-action').hidden = false; $('#handoff-sum').hidden = true;
   $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + recs.length + ' 筆有摘要的文獻；不會加入清單以外的內容。';
   try {
     const d = await relay('summarize', {
       question: cleanText(S.question || S.term, 500),
-      records: recs.map(r => ({
+      records: recs.map((r, i) => ({
         n: r.n,
         title: cleanText(r.title, 250),
         meta: [r.journal, r.year, (r.pubtypes || []).filter(t => PT_LABEL[t]).slice(0, 2).map(t => PT_LABEL[t]).join('、')].filter(Boolean).join('；'),
-        abstract: cleanText(absText(r), per)
+        abstract: cleanText(absText(r), per[i])
       }))
     });
     if (stale()) return;

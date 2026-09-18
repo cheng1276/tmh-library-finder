@@ -29,7 +29,7 @@
  */
 const API = '/api/ai';   // 中繼站的路徑；其餘網址一律當成網站檔案
 
-const VERSION = '2.7 (2026-09) / Pages';
+const VERSION = '2.8 (2026-09) / Pages';
 // 提示詞版本。改動任何提示詞就把它加一 —— 快取鍵含這個版本，舊的結果會自動作廢。
 // （之前改了提示詞卻沒換快取鍵，同一個問題一直回舊的短檢索式，改什麼都看不出效果。）
 const PROMPT_V = 'p4';
@@ -103,6 +103,23 @@ const json = (obj, status, headers) => new Response(JSON.stringify(obj), {
 const fail = (type, message, status, headers) => json({ error: { type, message } }, status || 400, headers);
 const today = () => new Date().toISOString().slice(0, 10);   // 額度每天 00:00 UTC（台灣早上 8 點）重置
 const clip = (s, n) => String(s == null ? '' : s).replace(/[ --]/g, ' ').slice(0, n);
+// 每篇摘要能帶多少字。原則：先讓每一篇都拿到完整摘要，只有在總量超過上限時才砍，
+// 而且不是齊頭砍——齊頭砍會連短摘要一起砍掉、長的也還是不夠。改用水位法：
+// 找一個水位，低於水位的原封不動，高於水位的砍到水位，剛好塞滿總量上限。
+// 實測 10 篇一般摘要加起來約 1 萬字元，根本碰不到上限；只有 Cochrane 這種
+// 一篇 6,000 字元的系統性回顧湊在一起時才會啟動。
+function abstractBudget(lens, total, perMax){
+  const cap = Math.max(200, perMax || 8000);
+  const L = lens.map(n => Math.min(Math.max(0, n | 0), cap));
+  if (L.reduce((a, b) => a + b, 0) <= total) return L;       // 塞得下就全給
+  let lo = 0, hi = cap;                                       // 二分找水位：塞得下的最大整數水位
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi + 1) / 2);
+    if (L.reduce((a, n) => a + Math.min(n, mid), 0) <= total) lo = mid; else hi = mid - 1;
+  }
+  const lvl = Math.max(400, lo);                               // 再擠也保留 400 字元，不讓任何一篇整篇消失
+  return L.map(n => Math.min(n, lvl));
+}
 const estTokens = s => Math.ceil(String(s || '').length / 3.2);   // 中英混合的粗估
 
 function cors(request, env, selfOrigin) {
@@ -358,9 +375,11 @@ async function doSummarize(env, body) {
   // 先算好每篇能分到多少，而不是先到先用 —— 否則排在後面的文獻會被整篇丟掉，編號就對不上了。
   // 網頁端已經照同樣的規則分配過，這裡只是最後一道防線。
   const raw = (Array.isArray(body.records) ? body.records : []).slice(0, 20);
-  const per = Math.max(400, Math.min(8000, Math.floor(48000 / Math.max(1, raw.length))));
+  // 網頁端已經配好字數，這裡只是防線：擋住手工打造的超大請求，別讓它一次吃掉一天的額度。
+  // 和網頁用同一套水位法，所以正常情況下這裡不會再砍任何一篇。
+  const per = abstractBudget(raw.map(r => String(r && r.abstract || '').length), 48000, 8000);
   const recs = raw
-    .map(r => ({ n: Math.max(1, Math.min(999, parseInt(r.n, 10) || 0)), title: clip(r.title, 250), meta: clip(r.meta, 120), abstract: clip(r.abstract, per) }))
+    .map((r, i) => ({ n: Math.max(1, Math.min(999, parseInt(r.n, 10) || 0)), title: clip(r.title, 250), meta: clip(r.meta, 120), abstract: clip(r.abstract, per[i]) }))
     .filter(r => r.n && r.abstract);
   if (!recs.length) return fail('bad_request', '沒有收到可整理的文獻', 400);
 
