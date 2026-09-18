@@ -139,6 +139,7 @@
   .aipanel p{margin:0}
   .aipanel .sum{margin-top:10px;font-size:14.5px;line-height:1.8;max-width:70ch}
   .aipanel .sum a{font-weight:500;text-decoration:none;background:var(--brass-tint);color:var(--brass-deep);padding:0 5px;border-radius:4px}
+  .aipanel .sum a + a{margin-left:3px}
   .aipanel .sum a:hover{background:var(--brass);color:#fff}
   .aipanel .disc{margin-top:10px;font-size:12.5px;color:var(--muted)}
   .aipanel .sum .sum-h{color:var(--jade-deep);font-weight:700}
@@ -498,7 +499,7 @@ const CONFIG = {
     abstractChars: 900            // 整理重點時每篇摘要最多帶幾個字
   },
   showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '4.5（2026-09）'
+  version: '4.6（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1227,6 +1228,15 @@ function paintAIPanel(){
     : (S.summaryOff ? '圖書館今天的整理額度已用完（每天早上 8 點重置）。' : '') + '會把目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻（標題、摘要、全文連結）做成一段指令，交給你自己的 Claude 整理；本頁不會傳送任何資料。';
 }
 // 把文字整理成安全的純文字：去掉控制字元與被截斷的代理字元（截斷摘要時可能切到 emoji 或特殊符號的一半）
+// 把整理文字裡的 [編號] 變成可點的連結。
+// 模型常把多個來源寫成 [2, 4, 13]，舊版只認得單一數字的 [5]，整組就變成純文字了。
+// 清單裡沒有的編號保留原樣顯示（不要刪掉，否則句子會少一塊）。
+function linkRefs(html, valid){
+  return String(html).replace(/\[(\d+(?:\s*[,、;；]\s*\d+)*)\]/g, (m, grp) =>
+    grp.split(/\s*[,、;；]\s*/).map(n => valid.has(+n)
+      ? '<a href="#" class="ref" data-ref="' + n + '" title="開啟第 ' + n + ' 篇的圖書館全文（會登記點閱）">[' + n + ']</a>'
+      : '[' + n + ']').join(''));
+}
 function cleanText(t, max){
   let x = String(t || '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u2028\u2029]/g, ' ').replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '$1');
   if (max && x.length > max) { x = x.slice(0, max); x = x.replace(/[\uD800-\uDBFF]$/, ''); }
@@ -1258,9 +1268,9 @@ async function aiSummarize(){
     if (!text) throw new Error('AI 沒有回傳內容');
     const html = esc(text)
       .replace(/^(共識|分歧與限制|對這個問題的意涵|最相關)：?[ \t]*/gm, (m, h) => '<strong class="sum-h">' + h + '</strong>：')
-      .replace(/\[(\d+)\]/g, (m, x) => valid.has(+x) ? '<a href="#" class="ref" data-ref="' + x + '" title="開啟第 ' + x + ' 篇的圖書館全文（會登記點閱）">[' + x + ']</a>' : '')
       .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
-    $('#ai-sum').innerHTML = html; $('#ai-sum').hidden = false; $('#ai-disc').hidden = false; $('#ai-action').hidden = true;
+    const html2 = linkRefs(html, valid);
+    $('#ai-sum').innerHTML = html2; $('#ai-sum').hidden = false; $('#ai-disc').hidden = false; $('#ai-action').hidden = true;
     $('#ai-escalate').hidden = !(CONFIG.handoff && CONFIG.handoff.enabled);
   } catch (e) {
     if (stale()) return;
