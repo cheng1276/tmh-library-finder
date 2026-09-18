@@ -29,10 +29,10 @@
  */
 const API = '/api/ai';   // 中繼站的路徑；其餘網址一律當成網站檔案
 
-const VERSION = '2.6 (2026-09) / Pages';
+const VERSION = '2.7 (2026-09) / Pages';
 // 提示詞版本。改動任何提示詞就把它加一 —— 快取鍵含這個版本，舊的結果會自動作廢。
 // （之前改了提示詞卻沒換快取鍵，同一個問題一直回舊的短檢索式，改什麼都看不出效果。）
-const PROMPT_V = 'p3';
+const PROMPT_V = 'p4';
 
 /* ---------------- 提示詞（只在這裡，網頁不能改） ---------------- */
 const SYS_TRANSLATE = `你是醫院圖書館的實證醫學檢索專家。使用者會用中文或英文輸入一個臨床問題，或是一段臨床情境（病人描述、床邊遇到的狀況、開會要準備的題目）。
@@ -76,6 +76,9 @@ const SYS_SUMMARIZE = `你是實證醫學圖書館員。使用者會給你一個
 規則：
 - 每個陳述句都必須以 [編號] 標注來源，且只能引用清單中存在的編號。
 - 不得加入清單以外的資訊，不得推論摘要中沒有寫的結論。
+- 直接就手上的內容寫，不要花篇幅說明「清單只有幾篇」或「摘要不完整」這類輸入本身的問題。
+- 清單只有一兩篇時照樣分三段：就這幾篇講清楚它們做了什麼、限制在哪、對這個問題能說到什麼程度。
+- 「證據不足以回答」是可以寫的結論，但要說清楚是因為研究設計或樣本（例如只有病例報告），而不是因為清單篇數。
 - 最後另起一行寫「最相關：[編號], [編號], [編號]」（列 3–5 篇，最值得先讀的排前面）。
 純文字，不用 markdown，段落之間空一行。`;
 
@@ -351,8 +354,13 @@ const pickModel = (body, fallback) => (body && body.model && MODELS.some(m => m.
 
 async function doSummarize(env, body) {
   const question = clip(body.question, 600).trim();
-  const recs = (Array.isArray(body.records) ? body.records : []).slice(0, 20)
-    .map(r => ({ n: Math.max(1, Math.min(999, parseInt(r.n, 10) || 0)), title: clip(r.title, 250), meta: clip(r.meta, 120), abstract: clip(r.abstract, 1000) }))
+  // 單篇上限依篇數分配（長的系統性回顧摘要才不會被切一半），總量有上限。
+  // 先算好每篇能分到多少，而不是先到先用 —— 否則排在後面的文獻會被整篇丟掉，編號就對不上了。
+  // 網頁端已經照同樣的規則分配過，這裡只是最後一道防線。
+  const raw = (Array.isArray(body.records) ? body.records : []).slice(0, 20);
+  const per = Math.max(400, Math.min(8000, Math.floor(48000 / Math.max(1, raw.length))));
+  const recs = raw
+    .map(r => ({ n: Math.max(1, Math.min(999, parseInt(r.n, 10) || 0)), title: clip(r.title, 250), meta: clip(r.meta, 120), abstract: clip(r.abstract, per) }))
     .filter(r => r.n && r.abstract);
   if (!recs.length) return fail('bad_request', '沒有收到可整理的文獻', 400);
 
