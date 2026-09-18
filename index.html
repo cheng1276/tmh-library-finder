@@ -179,6 +179,8 @@
   .tag.id{background:transparent;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11.5px;text-decoration:none}
   a.tag.id:hover{border-color:var(--jade);color:var(--jade-deep)}
   .acts{display:flex;flex-wrap:wrap;gap:8px}
+  .concl{margin:0 0 8px;padding:6px 10px;background:var(--soft);border-radius:6px;font-size:13.5px;line-height:1.6;max-width:74ch;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .concl b{color:var(--jade-deep);font-weight:500;margin-right:6px}
   .abs{display:none;margin-top:12px;padding:12px 14px;background:var(--soft);border-radius:8px;font-size:14px;line-height:1.75;max-width:74ch}
   .abs.open{display:block}
   .abs b{color:var(--jade-deep)}
@@ -225,7 +227,7 @@
     <div>
       <div class="org">台南市立醫院圖書館</div>
       <h1>找文獻</h1>
-      <p class="tagline">用英文關鍵詞直接查，或用中文描述問題、貼一段臨床情境，交給你自己的 Claude 轉成檢索式。查到的每一筆都是 PubMed 收錄的真實文獻，附 PMID／DOI 可核對，並可直接透過圖書館取得全文。</p>
+      <p class="tagline">用中文描述問題、貼一段臨床情境，或直接打英文關鍵詞。查到的每一筆都是 PubMed 收錄的真實文獻，附 PMID／DOI 可核對，並可直接透過圖書館取得全文。</p>
     </div>
     <div class="mast-side">
       <div class="pills" aria-live="polite">
@@ -248,7 +250,7 @@
     </div>
     <div id="mode-quick">
       <label for="q" class="desk-label">你想找什麼？</label>
-      <textarea id="q" rows="2" placeholder="例如：hip fracture delirium prevention elderly（PubMed 以英文檢索）；中文問題請按下方「請 Claude 轉成檢索式」"></textarea>
+      <textarea id="q" rows="2" placeholder="例如：老年髖部骨折術後如何預防譫妄？　也可以直接打英文關鍵詞：hip fracture delirium prevention"></textarea>
       <div class="examples">試試：
         <button type="button" class="ex">hip fracture delirium prevention</button>
         <button type="button" class="ex">SGLT2 inhibitors heart failure hospitalization</button>
@@ -376,7 +378,8 @@
         <p><strong>點閱會算進院方的統計嗎？</strong>ERM 只統計經過它跳轉的點擊。所以本頁點「圖書館全文」時，會先在新分頁經 ERM 登記一次（有期刊資料就登記到該期刊，否則登記到該平台），兩三秒後再自動轉到文章；登記時 ERM 認的是你在該瀏覽器登入的帳號，所以要先「啟用圖書館連線」。免費版本、PMC、直接開 DOI 這些不經圖書館的連結，本來就不會計入。</p>
         <p><strong>有些資料庫要另外登入，怎麼辦？</strong>經過圖書館代理時，大多數平台會以醫院 IP 認證，不必再輸入帳密。少數平台例外：一種是要先在院內網路註冊個人帳號（如 ClinicalKey、DynaMed），一種是圖書館提供共用帳密（如 EBSCO、Cochrane）。本頁不會存放任何帳密，遇到這些平台只會提示，並附上 ERM 資料庫簡介的連結；共用帳密只在登入 ERM 之後才看得到，請不要把它們貼到本頁或任何公開網頁。</p>
         <p id="about-ai" hidden><strong>AI 只做兩件事。</strong>一是讀懂問題或臨床情境，歸納成 PICO 問題並轉成 PubMed 檢索式，檢索式與替代策略都完整顯示給你檢查、可自行修改；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。</p>
-        <p id="about-handoff" hidden><strong>AI 用誰的帳號？</strong>本頁沒有內建 AI，也沒有任何伺服器。按「請 Claude 轉成檢索式」或「交給你的 Claude 整理重點」時，會開啟你自己的 Claude（claude.ai，免費帳號即可）並把指令帶進輸入框，由你按送出；Claude 只會拿到你輸入的問題和 PubMed 的公開摘要。第一步 Claude 會回覆「找文獻」的連結，點了就回到本頁自動查 PubMed，所以每一筆文獻仍然是資料庫查出來的，不是 AI 憑空產生的。沒有 Claude 帳號的同仁也可以直接用英文關鍵詞查詢。</p>
+        <p id="about-relay" hidden><strong>AI 是誰提供的？</strong>是圖書館自己架的「AI 中繼站」（Cloudflare Workers 免費方案），用 Cloudflare Workers AI 執行。同仁不需要任何 AI 帳號，也不必登入。送出去的只有你打的問題，以及 PubMed 的公開書目與摘要；Cloudflare 明文承諾不會把客戶內容用於訓練模型，中繼站本身也不保存查詢內容（只記錄每日用量數字）。請不要輸入病人可識別資料。額度用完時（每天早上 8 點重置），查詢與全文連結完全不受影響，只有「重點整理」會改成由你自己的 Claude 帳號處理。</p>
+        <p id="about-handoff" hidden><strong>AI 用誰的帳號？</strong>目前這個頁面沒有接上圖書館的 AI 中繼站，所以本頁不含任何 AI。按「請 Claude 轉成檢索式」或「交給你的 Claude 整理重點」時，會開啟你自己的 Claude（claude.ai，免費帳號即可）並把指令帶進輸入框，由你按送出；Claude 只會拿到你輸入的問題和 PubMed 的公開摘要。第一步 Claude 會回覆「找文獻」的連結，點了就回到本頁自動查 PubMed，所以每一筆文獻仍然是資料庫查出來的，不是 AI 憑空產生的。沒有 Claude 帳號的同仁也可以直接用英文關鍵詞查詢。</p>
         <p><strong>要讓全院同仁使用？</strong>把這一個 HTML 檔（連同 holdings.csv）放到院內網站或任何靜態網頁空間（例如 GitHub Pages）即可，不需要伺服器程式、不需要任何付費服務；直接用瀏覽器開啟檔案也能查詢，只是「請 Claude 轉成檢索式」的回程連結需要放在網站上才有效。</p>
         <p><strong>找不到想要的內容？</strong>華藝中文期刊、UpToDate、ClinicalKey、Micromedex 等資料庫不在 PubMed 索引範圍，請從圖書館遠端系統的資料庫清單進入查詢。</p>
       </div>
@@ -397,9 +400,13 @@
           <p class="small" id="holdings-status"></p>
         </fieldset>
         <label class="chk" style="margin:0 0 12px"><input type="checkbox" id="set-count" checked> 開啟全文前先經 ERM 登記點閱（供院方統計用；每次多等約 2–3 秒）</label>
-        <div id="set-ai-wrap" hidden>
-          <label class="chk" style="margin:0 0 12px"><input type="checkbox" id="set-auto" checked> 查完自動做 AI 重點整理（經 AI 中繼站時）</label>
-        </div>
+        <fieldset>
+          <legend>AI 中繼站</legend>
+          <p class="small" id="relay-status">檢查中…</p>
+          <p class="small">要讓同仁不必自備 AI 帳號，請依 <code>tmh-ai-worker.js</code> 的說明在 Cloudflare 免費方案架一個中繼站，再把網址填進本檔開頭 <code>CONFIG.ai.endpoint</code>（只有這一行要改）。沒有中繼站時，頁面會自動改用「交棒」模式。</p>
+          <label class="chk" style="margin:6px 0 0"><input type="checkbox" id="set-auto" checked> 查完自動做 AI 重點整理</label>
+        </fieldset>
+        <label class="chk" style="margin:0 0 12px"><input type="checkbox" id="set-concl" checked> 每筆結果顯示摘要中的結論句（不用 AI）</label>
         <label class="field">AI 重點整理納入的篇數（依相關性取前 N 篇；交給 Claude 整理時也適用）
           <select id="set-sumn"><option>10</option><option selected>20</option></select>
         </label>
@@ -470,11 +477,14 @@ const CONFIG = {
   ill: { label: '館際合作', url: 'https://ndds.stpi.niar.org.tw/' },   // 全國文獻傳遞服務 NDDS（2025 年起網域由 narl 改為 niar）
   pageSize: 20,
   ai: {
-    model: 'claude-sonnet-4-6',   // 經中繼站時由中繼站決定模型；這裡只是預設值
-    endpoint: '',                 // AI 中繼站（Cloudflare Worker，見 worker.js）的網址。留空＝不用中繼站，改由「交棒」把工作交給使用者自己的 Claude（零費用）
-    accessCode: '',               // 中繼站若設定了存取碼，填在這裡（公開頁面上的存取碼只能擋掃描器，不是機密）
-    autoSummary: true,            // 經中繼站時：查完自動做 AI 重點整理
-    summaryN: 20                  // AI 重點整理最多納入前幾篇（依相關性排序的前 N 篇；交棒模式也用這個數字）
+    // ★★★ 只要填這一行 ★★★
+    // 圖書館的 AI 中繼站網址（Cloudflare Worker，見 tmh-ai-worker.js 與設定說明）。
+    // 填好之後，同仁打中文問題按「查找」就會自動轉檢索式並自動整理重點，完全不必有任何 AI 帳號。
+    // 留空＝沒有中繼站，頁面改用「交棒」：把指令交給使用者自己的 Claude（也是零費用，但要多幾個動作）。
+    endpoint: '',                 // 例如 'https://tmh-ai.你的帳號.workers.dev'
+    accessCode: '',               // 中繼站若設了存取碼就填在這裡（公開頁面上的存取碼只能擋掃描器，不是機密）
+    autoSummary: true,            // 查完自動做重點整理（有中繼站時）
+    summaryN: 20                  // 重點整理最多納入前幾篇（依相關性排序的前 N 篇；交棒模式也用這個數字）
   },
   // 交棒模式（endpoint 留空時）：把工作交給使用者自己的 Claude 帳號（免費方案即可）。
   // 轉檢索式：開啟 claude.ai/new 並用 ?q= 帶入指令，Claude 回覆本頁的連結（?from=ai&q=檢索式），點了就回來自動查詢。
@@ -485,7 +495,8 @@ const CONFIG = {
     maxUrlLength: 7000,           // ?q= 帶入的網址超過這個長度就不帶，改請使用者貼上（剪貼簿裡已經有）
     abstractChars: 900            // 整理重點時每篇摘要最多帶幾個字
   },
-  version: '2.0（2026-09）'
+  showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
+  version: '3.0（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -501,7 +512,7 @@ const PT_LABEL = {
 };
 const LANG = { chi:'中文', jpn:'日文', kor:'韓文', fre:'法文', ger:'德文', spa:'西班牙文', por:'葡萄牙文', ita:'義大利文', rus:'俄文' };
 
-const S = { pubmed:null, ai:null, pmProbe:null, aiProbe:null, mode:'quick', src:'direct', busy:false, gen:0, fromAI:false, holdings:null, holdingsSource:'',
+const S = { pubmed:null, ai:null, summaryOff:false, relay:null, pmProbe:null, aiProbe:null, mode:'quick', src:'direct', busy:false, gen:0, fromAI:false, holdings:null, holdingsSource:'',
             question:'', term:'', retstart:0, count:0, records:[], translation:null };
 const isAppleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -746,121 +757,59 @@ function applyFilters(base){
   return parts.join(' AND ');
 }
 
-/* ---------- Claude API（僅在可連線的環境啟用） ---------- */
-async function claude(system, user, opts = {}){
-  // 只在設定了 AI 中繼站（CONFIG.ai.endpoint）時可用；沒有中繼站時一律走「交棒」模式，不會對外送出任何請求
-  if (!CONFIG.ai.endpoint) throw new Error('未設定 AI 中繼站');
-  try {
-    const body = { model: CONFIG.ai.model, max_tokens: opts.maxTokens || 1000, system, messages: [{ role:'user', content:user }] };
-    if (opts.tools) body.tools = opts.tools;
-    const viaRelay = !!CONFIG.ai.endpoint;
-    const headers = { 'Content-Type': 'application/json' };
-    if (viaRelay && CONFIG.ai.accessCode) headers['X-Access-Code'] = CONFIG.ai.accessCode;
-    const url = viaRelay ? CONFIG.ai.endpoint : 'https://api.anthropic.com/v1/messages';
-    const payload = JSON.stringify(body);
-    // 送出與讀取兩步都納入重試：繞過某些環境（如 Claude 應用的 Mac Safari 版）在轉送／讀取時偶發的錯誤
-    const MAX = 12; let data;
-    for (let attempt = 1; attempt <= MAX; attempt++) {
-      try {
-        const r = await fetch(url, { method: 'POST', headers, body: payload });
-        if (!r.ok) {
-          const msg = { 401: 'AI 中繼站需要存取碼（請在設定填入）', 403: 'AI 中繼站不允許這個網址使用', 429: '今日 AI 額度已用完，請明天再試', 413: '送出的內容太長' }[r.status];
-          if (r.status >= 500 && attempt < 4) { await new Promise(res => setTimeout(res, 400 * attempt)); continue; }
-          const err = new Error(msg || 'AI 服務回應 ' + r.status); err.httpStatus = r.status; throw err;
-        }
-        data = JSON.parse(await r.text());   // 自己解析，避開轉接層的 r.json()
-        break;
-      } catch (e) {
-        if (e && e.httpStatus) throw e;
-        if (attempt === MAX) throw e;
-        const wait = attempt <= 3 ? 0 : attempt <= 6 ? 100 : 250;
-        if (wait) await new Promise(res => setTimeout(res, wait));
-      }
-    }
-    if (data && data.error) throw new Error(data.error.message || 'AI 服務錯誤');
-    if (opts.raw) return data;
-    return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-  } catch (e) {
-    if (e && e.name === 'AbortError') throw new Error('AI 服務逾時，請再試一次');
-    throw e;
-  }
-}
-function extractJSON(text){
-  let clean = String(text || '').replace(/```(?:json)?/gi, '').trim();
-  const tryParse = t => { try { return JSON.parse(t); } catch (e) { return undefined; } };
-  const fix = t => t.replace(/[\u201c\u201d]/g, '"').replace(/[\u2018\u2019]/g, "'").replace(/,\s*([}\]])/g, '$1');
-  let r = tryParse(clean); if (r !== undefined) return r;
-  r = tryParse(fix(clean)); if (r !== undefined) return r;
-  for (const [o, c] of [['{', '}'], ['[', ']']]) {
-    const a = clean.indexOf(o), b = clean.lastIndexOf(c);
-    if (a >= 0 && b > a) { const seg = clean.slice(a, b + 1); r = tryParse(seg) ?? tryParse(fix(seg)); if (r !== undefined) return r; }
-  }
-  const m = clean.match(/"query"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (m) { try { return { query: JSON.parse('"' + m[1] + '"') }; } catch (e) { return { query: m[1] }; } }
-  throw new Error('無法解析 AI 回傳的內容');
-}
-const SYS_TRANSLATE = `你是醫院圖書館的實證醫學檢索專家。使用者會用中文或英文輸入一個臨床問題，或是一段臨床情境（病人描述、床邊遇到的狀況、開會要準備的題目）。請：
-1. 若是情境而非明確問題，先歸納出「最值得查證的一個臨床問題」，用 PICO 表達（P 病人／問題、I 介入或暴露、C 比較、O 結果；沒有的欄位留空）。若情境含多個問題，主問題放 query，其餘做成 alternatives。
-2. 判斷問題類型：therapy（治療／預防）、diagnosis、prognosis、etiology（病因／危險因子）、other。
-3. 把主問題轉成一條 PubMed 檢索式（英文）：拆出 2–4 個核心概念，每個概念以 MeSH 詞（[mh]）加上自由詞同義詞（[tiab]）用 OR 併列，概念之間用 AND 連接；不要過度限縮，不要加入日期、文獻類型、語言或 humans 限制（介面會另外加）；寫在同一行。
-4. 另給 1–3 條替代策略（例如更廣的、更精準的、或針對次要問題的），每條附 6 字內的標籤。
-5. 依問題類型建議先看的文獻類型：therapy → "sr"（系統性回顧／統合分析）；diagnosis → "sr"；prognosis 或 etiology → ""；若問題是「怎麼做」類的臨床實務 → "guideline"。
-若輸入與醫學、健康或生醫研究無關（例如日常閒聊、非醫療的問題），或無法用文獻資料庫回答，請回傳 {"query":"","note":"用一句繁體中文說明為什麼不適合用 PubMed 查"}，不要硬湊檢索式。
-只回傳 JSON（不要 markdown 圍欄、不要其他文字），note 用繁體中文一到兩句說明你判斷的問題與策略：
-{"question":"歸納後的臨床問題（繁體中文）","type":"therapy","pico":{"P":"","I":"","C":"","O":""},"query":"...","alternatives":[{"label":"更廣","query":"..."}],"suggest":"sr","note":"..."}`;
-const SYS_SUMMARIZE = `你是實證醫學圖書館員。使用者會給你一個問題，以及一份有編號的文獻清單（含摘要）。
-請只根據這些摘要，用繁體中文寫 400–500 字的重點整理（全文絕不超過 550 字，每段 120–170 字；超過會被系統截斷），分成三段，每段以下列小標開頭（小標單獨一行，後面接內容）：
-共識：多數文獻一致的發現，以及它們的研究類型或證據等級（例如系統性回顧、隨機試驗、觀察性研究、病例報告）。
-分歧與限制：文獻之間不一致的地方、證據較弱或樣本小的地方、與使用者情境不完全相符的地方。
-對這個問題的意涵：從上述證據能推到的實務要點，並明確標出哪些是證據直接支持、哪些只是延伸；若證據不足以回答，就直說。
-規則：
-- 每個陳述句都必須以 [編號] 標注來源，且只能引用清單中存在的編號。
-- 不得加入清單以外的資訊，不得推論摘要中沒有寫的結論。
-- 最後另起一行寫「最相關：[編號], [編號], [編號]」（列 3–5 篇，最值得先讀的排前面）。
-純文字，不用 markdown，段落之間空一行。`;
-const SYS_WEB = `你是醫學圖書館員的檢索助理。請用 web_search 工具在 PubMed（pubmed.ncbi.nlm.nih.gov）搜尋與使用者問題相關的文獻，可用英文檢索詞搜尋 2–3 次。
-只回傳 JSON 陣列（不要 markdown 圍欄、不要其他文字）：
-[{"pmid":"12345678","title":"...","journal":"...","year":"2024","authors":"Smith A, Lee B","pubtype":"Randomized Controlled Trial","doi":"10.xxxx/xxxx 或 null","why":"一句話（繁體中文，30 字內）說明與問題的關聯"}]
-規則：
-- 只能列出你在搜尋結果中實際看到、網址為 pubmed.ncbi.nlm.nih.gov/<PMID>/ 的文獻，pmid 必須來自該網址。
-- 絕不可捏造或猜測 PMID、標題、作者、DOI；不確定的欄位填 null。
-- 最多 8 筆，依相關性排序。`;
-
-async function aiTranslate(question){
-  let j, lastErr;
-  for (let i = 0; i < 3; i++) {
+/* ---------- 圖書館的 AI 中繼站 ----------
+   本頁不放任何金鑰、也不直接連任何 AI 服務：只把「問題」或「文獻清單」送到圖書館自己的中繼站
+   （Cloudflare Worker），由它呼叫 Cloudflare Workers AI 再把結果送回來。提示詞寫在中繼站裡，
+   所以即使網址外流，也沒辦法拿它當免費 AI 用。沒設定中繼站時，這個函式不會送出任何請求。 */
+const relayBase = () => String(CONFIG.ai.endpoint || '').trim().replace(/\/+$/, '');
+const relayOn = () => !!relayBase() && S.ai !== false;                 // 中繼站可用（轉檢索式）
+const summaryRelayOn = () => relayOn() && !S.summaryOff;               // 中繼站可用且今日整理額度還夠
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function relay(task, payload){
+  if (!relayBase()) { const e = new Error('未設定 AI 中繼站'); e.code = 'NO_RELAY'; throw e; }
+  const headers = { 'Content-Type': 'application/json' };
+  if (CONFIG.ai.accessCode) headers['X-Access-Code'] = CONFIG.ai.accessCode;
+  const body = JSON.stringify(Object.assign({ task }, payload));
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      j = extractJSON(await claude(SYS_TRANSLATE, question, { timeout: 60000 }));
-      if (j && j.query) break;
-      if (j && !j.query && j.note) { const e = new Error(String(j.note)); e.code = 'NOT_SEARCHABLE'; throw e; }   // AI 判斷不適合查文獻：不重試
-      lastErr = new Error('AI 沒有給出檢索式');
-    } catch (e) { if (e.code === 'NOT_SEARCHABLE') throw e; lastErr = e; }
-    j = null;
+      const r = await fetch(relayBase(), { method: 'POST', headers, body });
+      const text = await r.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch (e) {}
+      if (!r.ok) {
+        const type = data && data.error && data.error.type;
+        const err = new Error((data && data.error && data.error.message) || ('AI 中繼站回應 ' + r.status));
+        err.code = { quota:'QUOTA', auth:'AUTH', origin:'ORIGIN', config:'CONFIG', parse:'PARSE', too_large:'TOO_LARGE', bad_request:'BAD_REQUEST' }[type] || 'HTTP';
+        err.status = r.status;
+        if (err.code !== 'HTTP' || r.status < 500 || attempt === 3) throw err;   // 只有 5xx 值得重試
+        lastErr = err;
+      } else if (!data) {
+        lastErr = new Error('AI 中繼站回傳了無法解析的內容');
+        if (attempt === 3) throw lastErr;
+      } else return data;
+    } catch (e) {
+      if (e.code) throw e;                                   // 中繼站明確給的錯誤：不重試
+      lastErr = e; if (attempt === 3) throw lastErr;
+    }
+    await sleep(500 * attempt);
   }
-  if (!j || !j.query) throw lastErr || new Error('AI 沒有給出檢索式');
-  const oneLine = q => String(q || '').replace(/\s+/g, ' ').trim();
-  const pico = j.pico && typeof j.pico === 'object' ? j.pico : {};
-  return {
-    query: oneLine(j.query),
-    question: j.question || '',
-    type: j.type || '',
-    pico: ['P', 'I', 'C', 'O'].map(k => pico[k] ? k + '：' + pico[k] : '').filter(Boolean),
-    alternatives: (Array.isArray(j.alternatives) ? j.alternatives : []).filter(a => a && a.query).slice(0, 3).map(a => ({ label: String(a.label || '替代').slice(0, 12), query: oneLine(a.query) })),
-    suggest: ['sr', 'rct', 'guideline'].includes(j.suggest) ? j.suggest : '',
-    note: j.note || ''
-  };
+  throw lastErr || new Error('AI 中繼站無法連線');
 }
-async function aiWebFallback(question, term){
-  const text = await claude(SYS_WEB, '問題：' + question + '\n可參考的英文檢索詞：' + term,
-                            { tools: [{ type:'web_search_20250305', name:'web_search', max_uses: 3 }] });
-  const arr = extractJSON(text);
-  if (!Array.isArray(arr)) throw new Error('AI 回傳格式異常');
-  const seen = new Set();
-  return arr.filter(x => x && /^\d{1,9}$/.test(String(x.pmid || '')) && !seen.has(String(x.pmid)) && seen.add(String(x.pmid)))
-    .map(x => ({ pmid: String(x.pmid), title: x.title || '(標題未取得，請點 PubMed 查看)', journal: x.journal || '', year: x.year ? String(x.year) : '',
-                 authors: typeof x.authors === 'string' ? x.authors.split(/,\s*/) : (Array.isArray(x.authors) ? x.authors : []),
-                 pubtypes: x.pubtype ? [x.pubtype] : [], doi: (x.doi && /^10\./.test(x.doi)) ? x.doi : '', pmc: '',
-                 abstractParts: [], mesh: [], why: x.why || '', fromWeb: true }));
+
+// 問題 → PubMed 檢索式（中繼站已經整理好格式，這裡只做防呆）
+async function aiTranslate(question){
+  const d = await relay('translate', { question });
+  if (d && d.notSearchable) { const e = new Error(String(d.note || '這個問題不適合用 PubMed 查')); e.code = 'NOT_SEARCHABLE'; throw e; }
+  const t = d && d.translation;
+  if (!t || !t.query) throw new Error('AI 沒有給出檢索式');
+  return {
+    query: String(t.query), question: t.question || '', type: t.type || '',
+    pico: Array.isArray(t.pico) ? t.pico : [],
+    alternatives: Array.isArray(t.alternatives) ? t.alternatives : [],
+    suggest: ['sr', 'rct', 'guideline'].includes(t.suggest) ? t.suggest : '',
+    note: t.note || ''
+  };
 }
 
 /* ---------- 館藏清單（可選）：判斷期刊是否訂閱 ---------- */
@@ -985,11 +934,16 @@ function paintPills(){
   a.innerHTML = '<i></i>' + (S.ai === null ? 'AI 助理檢查中' : S.ai ? 'AI 助理可用' : 'AI 助理未啟用');
   a.title = 'AI 可讀懂中文問題或臨床情境、轉成檢索式，並整理已查到的摘要';
   const hand = handoffActive();
-  if (hand) { a.className = 'pill ok'; a.innerHTML = '<i></i>AI 交給你自己的 Claude（免費）'; a.title = '本頁沒有內建 AI：按「請 Claude 轉成檢索式」或「交給你的 Claude 整理重點」時，會開啟你自己的 Claude 帳號（免費方案即可）'; }
-  a.hidden = !S.ai && !hand;             // 既沒有中繼站也不能交棒的環境就不顯示，頁面單純一點
-  $('#ai-opt').hidden = !S.ai;
-  const ab = $('#about-ai'); if (ab) ab.hidden = !S.ai;
+  if (relayOn()) {
+    a.className = 'pill ok';
+    a.innerHTML = '<i></i>' + (S.summaryOff ? 'AI 助理可用（今日整理額度已滿）' : 'AI 助理可用（圖書館提供）');
+    a.title = '由圖書館的 AI 中繼站提供，同仁不需要自己的 AI 帳號；問題與摘要只送到圖書館的中繼站與 Cloudflare，不會用於訓練模型';
+  } else if (hand) { a.className = 'pill ok'; a.innerHTML = '<i></i>AI 交給你自己的 Claude（免費）'; a.title = '目前沒有可用的中繼站：按「請 Claude 轉成檢索式」或「交給你的 Claude 整理重點」時，會開啟你自己的 Claude 帳號（免費方案即可）'; }
+  a.hidden = !relayOn() && !hand;        // 兩條路都沒有的環境就不顯示，頁面單純一點
+  $('#ai-opt').hidden = !relayOn();
+  const ab = $('#about-ai'); if (ab) ab.hidden = !relayOn();
   const ah = $('#about-handoff'); if (ah) ah.hidden = !hand;
+  const ar = $('#about-relay'); if (ar) ar.hidden = !relayOn();
   const sw = $('#set-ai-wrap'); if (sw) sw.hidden = !S.ai;
   paintHandoff();
   const h = $('#pill-holdings');
@@ -1035,16 +989,24 @@ function paintLedger(es){
   const tb = $('#translation-box');
   if (es && es.translation) { tb.hidden = false; $('#translation').textContent = es.translation; } else tb.hidden = true;
 }
-function paintLedgerWeb(n){
-  $('#ledger').hidden = false; $('#term').value = S.term;
-  $('#count').textContent = 'AI 網頁檢索找到 ' + n + ' 筆';
-  const pmUrl = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(S.term);
-  $('#open-pubmed').href = pmUrl;
-  $('#strategy').hidden = false;
-  $('#strategy').textContent = '此環境無法直接連線 PubMed 資料庫，改由 AI 以網頁搜尋 PubMed 取得下列文獻；每筆都可點 PubMed 核對。想要完整的資料庫查詢與摘要，請將本頁下載後直接開啟。';
-  $('#notfound').hidden = true; $('#translation-box').hidden = true;
-}
 
+// 摘要裡的結論：優先用結構式摘要的 CONCLUSIONS／INTERPRETATION 段；非結構式摘要取最後一句（會標示來源不同）
+const absText = rec => (rec.abstractParts || []).map(p => (p.label ? p.label + ': ' : '') + p.text).join(' ');
+// 取最後一句：只在「句點＋空白＋大寫或左括號」處斷句，才不會被 0.62、95% CI 這類小數點切斷
+function lastSentence(t){
+  const re = /[.!?]["'\)\]]*\s+(?=[A-Z("])/g;
+  let start = 0;
+  while (re.exec(t) !== null) start = re.lastIndex;
+  return t.slice(start).trim();
+}
+function conclusionOf(rec){
+  const ps = rec.abstractParts || []; if (!ps.length) return null;
+  const hit = ps.find(p => /conclusion|interpretation|implication|結論/i.test(p.label || ''));
+  if (hit && hit.text) return { label: '結論', text: hit.text };
+  if (ps.length > 1) return null;                                  // 結構式但沒有結論段：不猜
+  const t = lastSentence(String(ps[0].text || ''));
+  return t.length > 30 ? { label: '摘要末句', text: t } : null;
+}
 function citeLine(rec){
   const au = rec.authors || []; let a = au.slice(0, 3).join(', '); if (au.length > 3) a += ', et al';
   const j = [rec.journal, rec.year].filter(Boolean).join('. ');
@@ -1076,6 +1038,7 @@ function recHTML(rec){
   tags.push('<span class="tag id">PMID ' + esc(rec.pmid) + '</span>');
   if (rec.doi) tags.push('<a class="tag id" target="_blank" rel="noopener" title="出版社原站（不經圖書館）" href="https://doi.org/' + esc(rec.doi) + '">DOI ' + esc(rec.doi) + '</a>');
   const hasAbs = rec.abstractParts && rec.abstractParts.length;
+  const concl = conclusionOf(rec);
   const primaryLabel = rec.pmc ? '全文（PMC 免費）' : isOA(rec) && CONFIG.library.fulltextMode !== 'direct' ? '全文（免費）'
     : h && h.status === 'no' ? (route.kind === 'clinicalkey' ? '試試 ClinicalKey' : route.kind === 'ovid' ? '試試 Ovid' : '試試圖書館')
     : route.kind === 'erm' ? '圖書館全文（' + esc(platformName(route.entry)) + '）'
@@ -1113,6 +1076,7 @@ function recHTML(rec){
     '<h3><a target="_blank" rel="noopener" href="' + esc(pm) + '">' + esc(rec.title) + '</a></h3>' +
     '<p class="cite">' + esc(citeLine(rec)) + '</p>' +
     (rec.why ? '<p class="why">' + esc(rec.why) + '</p>' : '') +
+    (CONFIG.showConclusion && concl ? '<p class="concl" title="' + esc(concl.text) + '"><b>' + concl.label + '</b>' + esc(concl.text) + '</p>' : '') +
     '<div class="tags">' + tags.join('') + '</div><div class="acts">' + acts + '</div>' + hintLine + abs + '</div>';
 }
 function renderRecords(recs, start){
@@ -1138,7 +1102,7 @@ function emptyState(es){
 }
 /* ---------- 交棒給使用者自己的 Claude（零費用模式） ---------- */
 // 沒有 AI 中繼站時啟用：本頁不呼叫任何 AI 服務，只把「指令」帶到使用者自己的 Claude（claude.ai/new）
-const handoffActive = () => !!(CONFIG.handoff && CONFIG.handoff.enabled) && !CONFIG.ai.endpoint && S.ai !== true;
+const handoffActive = () => !!(CONFIG.handoff && CONFIG.handoff.enabled) && !relayOn();
 // 本頁自己的網址（回程連結用）：只有放在網站上（http/https）時才有意義；直接開檔案（file://）沒有回程連結
 const handoffBase = () => /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/index\.html?$/i, '') : '';
 function paintHandoff(){
@@ -1236,15 +1200,15 @@ function handoffSummarize(){
 function paintAIPanel(){
   const N = Math.max(10, +CONFIG.ai.summaryN || 20);
   const withAbs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, N);
-  const hand = handoffActive();
-  const show = S.src === 'direct' && withAbs.length > 0 && (S.ai || hand);
+  const byRelay = summaryRelayOn();
+  const show = S.src === 'direct' && withAbs.length > 0 && (byRelay || CONFIG.handoff.enabled);
   $('#aipanel').hidden = !show;
   if (!show) return;
   const n = Math.min(withAbs.length, +CONFIG.ai.summaryN || 20);
-  $('#ai-action').hidden = !S.ai; $('#handoff-sum').hidden = !!S.ai;
-  $('#ai-scope').textContent = S.ai
+  $('#ai-action').hidden = !byRelay; $('#handoff-sum').hidden = !!byRelay;
+  $('#ai-scope').textContent = byRelay
     ? '只依據目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻；不會加入清單以外的內容。'
-    : '會把目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻（標題、摘要、全文連結）做成一段指令，交給你自己的 Claude 整理；本頁不會傳送任何資料。';
+    : (S.summaryOff ? '圖書館今天的整理額度已用完（每天早上 8 點重置）。' : '') + '會把目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻（標題、摘要、全文連結）做成一段指令，交給你自己的 Claude 整理；本頁不會傳送任何資料。';
 }
 // 把文字整理成安全的純文字：去掉控制字元與被截斷的代理字元（截斷摘要時可能切到 emoji 或特殊符號的一半）
 function cleanText(t, max){
@@ -1252,44 +1216,47 @@ function cleanText(t, max){
   if (max && x.length > max) { x = x.slice(0, max); x = x.replace(/[\uD800-\uDBFF]$/, ''); }
   return x;
 }
-// 經 AI 中繼站的重點整理（設定了 CONFIG.ai.endpoint 時）
+// 重點整理：把已查到的摘要送到圖書館的中繼站，由它整理成三段式重點
 async function aiSummarize(){
   const gen = S.gen || 0;                          // 這份整理屬於哪一次查詢
   const stale = () => gen !== (S.gen || 0);        // 使用者已另起新查詢 → 這份整理作廢，不貼回畫面
-  const all = S.records.filter(r => r.abstractParts && r.abstractParts.length);
-  const build = (n, len) => { const recs = all.slice(0, n); return { recs, list: recs.map(r => '[' + r.n + '] ' + cleanText(r.title, 200) + '（' + [r.journal, r.year].filter(Boolean).join(', ') + '）\n摘要：' +
-    cleanText(r.abstractParts.map(p => (p.label ? p.label + ': ' : '') + p.text).join(' '), len)).join('\n\n') }; };
-  const btn = $('#summarize'); btn.disabled = true; btn.textContent = 'AI 整理中…'; $('#aipanel').hidden = false; $('#ai-action').hidden = false;
   const N = Math.max(4, +CONFIG.ai.summaryN || 20);
-  const attempts = [[N, N > 10 ? 700 : 900], [10, 900], [6, 600]].filter(([n], i, a) => a.findIndex(x => x[0] === n) === i);   // 中繼站對請求大小有限制時，逐步縮小再試
-  let lastErr = null;
-  for (const [n, len] of attempts) {
-    const { recs, list } = build(n, len); const valid = new Set(recs.map(r => r.n));
-    $('#ai-scope').textContent = '只依據目前載入的前 ' + recs.length + ' 筆有摘要的文獻；不會加入清單以外的內容。';
-    try {
-      const prompt = '問題：' + cleanText(S.question || S.term, 500) + '\n\n文獻清單：\n' + list;
-      const textOf = d => (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-      let data = await claude(SYS_SUMMARIZE, prompt, { maxTokens: 2000, raw: true });
-      if (stale()) return;
-      let text = textOf(data);
-      if (data.stop_reason === 'max_tokens' || !/最相關/.test(text)) {   // 被輸出上限截斷：請 AI 從中斷處接續
-        const tail = text.slice(-300);
-        const data2 = await claude(SYS_SUMMARIZE, prompt + '\n\n---\n\n你上一次的回覆寫到下面這裡就被截斷了：\n…' + tail + '\n\n請直接從中斷處接續寫完剩餘內容（不要重複已寫過的文字、不要重寫小標），最後仍以「最相關：[編號], …」結尾。', { maxTokens: 2000, raw: true });
-        if (stale()) return;
-        text = text.replace(/\s*\[?\s*$/, '') + textOf(data2);
-        if (data2.stop_reason === 'max_tokens') { const cut = Math.max(text.lastIndexOf('。'), text.lastIndexOf('\n最相關')); text = (cut > 0 ? text.slice(0, cut + 1) : text) + '\n（整理內容超過長度上限，已在此截斷。）'; }
-      }
-      const html = esc(text)
-        .replace(/^(共識|分歧與限制|對這個問題的意涵|最相關)：?[ \t]*/gm, (m, h) => '<strong class="sum-h">' + h + '</strong>：')
-        .replace(/\[(\d+)\]/g, (m, x) => valid.has(+x) ? '<a href="#" class="ref" data-ref="' + x + '" title="開啟第 ' + x + ' 篇的圖書館全文（會登記點閱）">[' + x + ']</a>' : '')
-        .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
-      $('#ai-sum').innerHTML = html; $('#ai-sum').hidden = false; $('#ai-disc').hidden = false; $('#ai-action').hidden = true;
-      return;
-    } catch (e) { if (stale()) return; lastErr = e; if (!/too large|413|太長/i.test(e.message)) break; }
+  const recs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, N);
+  if (!recs.length) return;
+  const valid = new Set(recs.map(r => r.n));
+  const btn = $('#summarize'); btn.disabled = true; btn.textContent = 'AI 整理中…';
+  $('#aipanel').hidden = false; $('#ai-action').hidden = false; $('#handoff-sum').hidden = true;
+  $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + recs.length + ' 筆有摘要的文獻；不會加入清單以外的內容。';
+  try {
+    const d = await relay('summarize', {
+      question: cleanText(S.question || S.term, 500),
+      records: recs.map(r => ({
+        n: r.n,
+        title: cleanText(r.title, 250),
+        meta: [r.journal, r.year, (r.pubtypes || []).filter(t => PT_LABEL[t]).slice(0, 2).map(t => PT_LABEL[t]).join('、')].filter(Boolean).join('；'),
+        abstract: cleanText(absText(r), 900)
+      }))
+    });
+    if (stale()) return;
+    const text = String((d && d.text) || '');
+    if (!text) throw new Error('AI 沒有回傳內容');
+    const html = esc(text)
+      .replace(/^(共識|分歧與限制|對這個問題的意涵|最相關)：?[ \t]*/gm, (m, h) => '<strong class="sum-h">' + h + '</strong>：')
+      .replace(/\[(\d+)\]/g, (m, x) => valid.has(+x) ? '<a href="#" class="ref" data-ref="' + x + '" title="開啟第 ' + x + ' 篇的圖書館全文（會登記點閱）">[' + x + ']</a>' : '')
+      .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
+    $('#ai-sum').innerHTML = html; $('#ai-sum').hidden = false; $('#ai-disc').hidden = false; $('#ai-action').hidden = true;
+  } catch (e) {
+    if (stale()) return;
+    btn.disabled = false; btn.textContent = '再試一次';
+    if (e.code === 'QUOTA') {                       // 今日整理額度用完：改讓使用者交給自己的 Claude
+      S.summaryOff = true; paintPills(); paintAIPanel();
+      showHint('圖書館今天的「AI 重點整理」額度已用完（每天早上 8 點重置）。查詢、全文連結都不受影響；想要整理重點，可以按下方「交給你的 Claude 整理重點」。');
+    } else if (e.code === 'NO_RELAY') {
+      S.ai = false; paintPills(); paintAIPanel();
+    } else {
+      showStatus('AI 整理失敗：' + e.message, 'error');
+    }
   }
-  if (stale()) return;
-  btn.disabled = false; btn.textContent = '再試一次';
-  showStatus('AI 整理失敗：' + (lastErr ? lastErr.message : ''), 'error');
 }
 
 /* ---------- 引導式查詢（PICO）：MeSH 建議、臨床問題篩選器、族群 ---------- */
@@ -1399,7 +1366,7 @@ async function search(opts = {}){
   if (fresh && !rawTerm && !question) { $('#q').focus(); return; }
   if (S.busy) return;                              // 查詢進行中（含 Enter、範例鈕）不再受理，避免結果疊加
   // 交棒模式下的中文問題：PubMed 只認英文，直接查會是 0 筆；改提示使用「請 Claude 轉成檢索式」（開新視窗必須由使用者自己按）
-  if (fresh && !rawTerm && hasCJK(question) && handoffActive()) {
+  if (fresh && !rawTerm && hasCJK(question) && !relayOn() && handoffActive()) {
     showHint('PubMed 只能用英文檢索。中文問題請按「請 Claude 轉成檢索式」：會開啟你自己的 Claude，把問題轉成檢索式並回一個連結，點了就回到本頁自動查詢。');
     const b = $('#handoff-translate'); if (b) { b.focus(); b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 1500); }
     return;
@@ -1424,7 +1391,14 @@ async function search(opts = {}){
           try { S.translation = await aiTranslate(question); base = S.translation.query; }
           catch (e) {
             if (e.code === 'NOT_SEARCHABLE') { setBusy(false); showHint('AI 判斷這個問題不適合用 PubMed 查：' + e.message + ' 請改成醫學或臨床相關的問題。'); return; }
-            showHint('AI 轉換檢索式失敗（' + e.message + '），改用你輸入的原文查詢。' + (hasCJK(question) ? ' 注意：PubMed 只認英文，中文原文可能查不到。' : ''));
+            if (e.code === 'QUOTA' || e.code === 'NO_RELAY' || e.code === 'CONFIG') {   // 中繼站沒額度或沒設好：改走交棒，並把按鈕叫出來
+              S.ai = false; paintPills(); paintHandoff(); setBusy(false);
+              showHint((e.code === 'QUOTA' ? '圖書館今天的 AI 額度已用完（每天早上 8 點重置）。' : 'AI 中繼站目前無法使用。') +
+                       (hasCJK(question) ? '中文問題請改按「請 Claude 轉成檢索式」，會開啟你自己的 Claude；或直接輸入英文關鍵詞查詢。' : '已改用你輸入的英文原文查詢。'));
+              if (hasCJK(question)) return;
+            } else {
+              showHint('AI 轉換檢索式失敗（' + e.message + '），改用你輸入的原文查詢。' + (hasCJK(question) ? ' 注意：PubMed 只認英文，中文原文可能查不到。' : ''));
+            }
           }
         } else if (hasCJK(question) && S.pubmed !== false) {
           showHint('PubMed 只能用英文檢索，請改用英文關鍵詞，例如：hip fracture delirium prevention。');
@@ -1449,7 +1423,7 @@ async function search(opts = {}){
         } else if (!S.records.length) emptyState(es);
         $('#more-wrap').hidden = !(S.retstart < S.count);
         paintAIPanel(); paintHandoff();
-        if (fresh && S.ai && CONFIG.ai.autoSummary && S.records.some(r => r.abstractParts && r.abstractParts.length)) aiSummarize();   // 經中繼站時自動整理；不等它，結果先呈現
+        if (fresh && summaryRelayOn() && CONFIG.ai.autoSummary && S.records.some(r => r.abstractParts && r.abstractParts.length)) aiSummarize();   // 有中繼站就自動整理；不等它，結果先呈現
         return;
       } catch (e) {
         if (!(e instanceof TypeError)) throw e;   // 真正的查詢錯誤照常顯示
@@ -1457,17 +1431,6 @@ async function search(opts = {}){
       }
     }
     if (!fresh) return;
-    // 2. 備援：AI 以網頁搜尋 PubMed（受限環境）
-    if (S.ai !== false) {
-      setBusy(true, 'PubMed 直連受限，改由 AI 以網頁搜尋 PubMed（約 20–40 秒）…');
-      try {
-        const recs = await aiWebFallback(S.question || question, S.term);
-        S.ai = true; S.src = 'web'; paintPills(); paintLedgerWeb(recs.length);
-        S.records = recs; renderRecords(recs, 0);
-        if (!recs.length) emptyState();
-        return;
-      } catch (e) { if (e instanceof TypeError) { S.ai = false; paintPills(); } else throw e; }
-    }
     throw new Error('目前無法連線 PubMed（可能是網路或防火牆暫時阻擋）。請稍後再試；若持續發生，請改到 pubmed.ncbi.nlm.nih.gov 查詢，或聯絡圖書館。');
   } catch (e) { showStatus(e.message || String(e), 'error'); return; }
   finally { S.busy = false; if (!$('#status').classList.contains('error')) setBusy(false); else { $('#go').disabled = false; $('#more').disabled = false; $('#rerun').disabled = false; } }
@@ -1479,10 +1442,22 @@ async function probePubMed(){
   catch (e) { S.pubmed = false; }
   paintPills();
 }
+// 探測中繼站：只是問一句狀態，不會用掉 AI 額度
+function paintRelayStatus(){
+  const el = $('#relay-status'); if (!el) return;
+  el.textContent = !relayBase() ? '未設定中繼站：頁面改用「交棒」模式（把指令交給使用者自己的 Claude）。'
+    : S.ai === false ? '中繼站無法連線（' + relayBase() + '）——頁面已自動改用「交棒」模式。'
+    : S.ai === null ? '檢查中…'
+    : '中繼站正常（' + relayBase() + '）' + (S.relay && S.relay.used != null ? '，今日已用約 ' + S.relay.used + ' / ' + S.relay.budget + ' neurons' : '') + (S.summaryOff ? '；今日重點整理額度已滿。' : '。');
+}
 async function probeAI(){
-  if (!CONFIG.ai.endpoint) { S.ai = false; paintPills(); return; }   // 沒有中繼站：不對外送任何請求，走交棒模式
-  try { await claude('只回覆 ok', 'ok', { timeout: 15000 }); S.ai = true; } catch (e) { S.ai = false; }
-  paintPills();
+  if (!relayBase()) { S.ai = false; paintPills(); paintRelayStatus(); return; }   // 沒有中繼站：不對外送任何請求，走交棒模式
+  try {
+    const r = await fetch(relayBase() + '/ping', { cache: 'no-store' });
+    const j = await r.json();
+    S.relay = j; S.ai = !!(j && j.ok && j.ai); S.summaryOff = !!(j && j.summaryOff);
+  } catch (e) { S.ai = false; }
+  paintPills(); paintRelayStatus();
 }
 async function copyText(t){
   try { await navigator.clipboard.writeText(t); return true; }
@@ -1515,7 +1490,7 @@ $('#strategy').addEventListener('click', e => {
 $('#summarize').addEventListener('click', aiSummarize);
 $('#handoff-summarize').addEventListener('click', handoffSummarize);
 $('#handoff-translate').addEventListener('click', handoffTranslate);
-$('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (CONFIG.ai.endpoint ? '　AI：中繼站' : '　AI：交給使用者自己的 Claude（零費用）');
+$('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (relayBase() ? '　AI：圖書館中繼站（Cloudflare Workers AI）' : '　AI：交給使用者自己的 Claude');
 ['#activate-link', '#activate-link-2'].forEach(sel => { const a = $(sel); if (a) a.addEventListener('click', () => { const n = $('#activate-note'); if (n) n.hidden = false; }); });
 (() => {
   const b = $('#copy-activate'); if (!b) return;
@@ -1523,6 +1498,7 @@ $('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (CONFIG.ai.end
 })();
 $('#set-auto').checked = !!CONFIG.ai.autoSummary; $('#set-auto').addEventListener('change', e => { CONFIG.ai.autoSummary = e.target.checked; });
 $('#set-sumn').value = String(CONFIG.ai.summaryN); $('#set-sumn').addEventListener('change', e => { CONFIG.ai.summaryN = +e.target.value; paintAIPanel(); });
+$('#set-concl').checked = !!CONFIG.showConclusion; $('#set-concl').addEventListener('change', e => { CONFIG.showConclusion = e.target.checked; rerenderAll(); });
 // 摘要裡的 [編號]：直接開啟該篇的「圖書館全文」（走同一條路，會登記點閱）；在沙箱裡不用頁內錨點，否則會被當成外部連結開新視窗
 $('#ai-sum').addEventListener('click', e => {
   const a = e.target.closest('a.ref'); if (!a) return;
