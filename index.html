@@ -378,7 +378,7 @@
         <p><strong>點閱會算進院方的統計嗎？</strong>ERM 只統計經過它跳轉的點擊。所以本頁點「圖書館全文」時，會先在新分頁經 ERM 登記一次（有期刊資料就登記到該期刊，否則登記到該平台），兩三秒後再自動轉到文章；登記時 ERM 認的是你在該瀏覽器登入的帳號，所以要先「啟用圖書館連線」。免費版本、PMC、直接開 DOI 這些不經圖書館的連結，本來就不會計入。</p>
         <p><strong>有些資料庫要另外登入，怎麼辦？</strong>經過圖書館代理時，大多數平台會以醫院 IP 認證，不必再輸入帳密。少數平台例外：一種是要先在院內網路註冊個人帳號（如 ClinicalKey、DynaMed），一種是圖書館提供共用帳密（如 EBSCO、Cochrane）。本頁不會存放任何帳密，遇到這些平台只會提示，並附上 ERM 資料庫簡介的連結；共用帳密只在登入 ERM 之後才看得到，請不要把它們貼到本頁或任何公開網頁。</p>
         <p id="about-ai" hidden><strong>AI 只做兩件事。</strong>一是讀懂問題或臨床情境，歸納成 PICO 問題並轉成 PubMed 檢索式，檢索式與替代策略都完整顯示給你檢查、可自行修改；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。</p>
-        <p id="about-relay" hidden><strong>AI 是誰提供的？</strong>是圖書館自己架的「AI 中繼站」（Cloudflare Workers 免費方案），用 Cloudflare Workers AI 執行。同仁不需要任何 AI 帳號，也不必登入。送出去的只有你打的問題，以及 PubMed 的公開書目與摘要；Cloudflare 明文承諾不會把客戶內容用於訓練模型，中繼站本身也不保存查詢內容（只記錄每日用量數字）。請不要輸入病人可識別資料。額度用完時（每天早上 8 點重置），查詢與全文連結完全不受影響，只有「重點整理」會改成由你自己的 Claude 帳號處理。</p>
+        <p id="about-relay" hidden><strong>AI 是誰提供的？</strong>是圖書館自己架的「AI 中繼站」，就跑在本站同一個網域上（Cloudflare 免費方案），用 Cloudflare Workers AI 執行。同仁不需要任何 AI 帳號，也不必登入。送出去的只有你打的問題，以及 PubMed 的公開書目與摘要；Cloudflare 明文承諾不會把客戶內容用於訓練模型，中繼站本身也不保存查詢內容（只記錄每日用量數字）。請不要輸入病人可識別資料。額度用完時（每天早上 8 點重置），查詢與全文連結完全不受影響，只有「重點整理」會改成由你自己的 Claude 帳號處理。</p>
         <p id="about-handoff" hidden><strong>AI 用誰的帳號？</strong>目前這個頁面沒有接上圖書館的 AI 中繼站，所以本頁不含任何 AI。按「請 Claude 轉成檢索式」或「交給你的 Claude 整理重點」時，會開啟你自己的 Claude（claude.ai，免費帳號即可）並把指令帶進輸入框，由你按送出；Claude 只會拿到你輸入的問題和 PubMed 的公開摘要。第一步 Claude 會回覆「找文獻」的連結，點了就回到本頁自動查 PubMed，所以每一筆文獻仍然是資料庫查出來的，不是 AI 憑空產生的。沒有 Claude 帳號的同仁也可以直接用英文關鍵詞查詢。</p>
         <p><strong>要讓全院同仁使用？</strong>把這一個 HTML 檔（連同 holdings.csv）放到院內網站或任何靜態網頁空間（例如 GitHub Pages）即可，不需要伺服器程式、不需要任何付費服務；直接用瀏覽器開啟檔案也能查詢，只是「請 Claude 轉成檢索式」的回程連結需要放在網站上才有效。</p>
         <p><strong>找不到想要的內容？</strong>華藝中文期刊、UpToDate、ClinicalKey、Micromedex 等資料庫不在 PubMed 索引範圍，請從圖書館遠端系統的資料庫清單進入查詢。</p>
@@ -403,7 +403,7 @@
         <fieldset>
           <legend>AI 中繼站</legend>
           <p class="small" id="relay-status">檢查中…</p>
-          <p class="small">要讓同仁不必自備 AI 帳號，請依 <code>tmh-ai-worker.js</code> 的說明在 Cloudflare 免費方案架一個中繼站，再把網址填進本檔開頭 <code>CONFIG.ai.endpoint</code>（只有這一行要改）。沒有中繼站時，頁面會自動改用「交棒」模式。</p>
+          <p class="small">中繼站就是同一個網站裡的 <code>_worker.js</code>（Cloudflare Pages）。要讓它運作，只需在 Pages 專案的 Settings → Bindings → Add → Workers AI，變數名稱填 <code>AI</code>，再重新部署一次。狀態頁在 <a href="/api/ai" target="_blank" rel="noopener">/api/ai</a>。中繼站不在時，頁面會自動改用「交棒」模式，查詢與全文都不受影響。</p>
           <label class="chk" style="margin:6px 0 0"><input type="checkbox" id="set-auto" checked> 查完自動做 AI 重點整理</label>
         </fieldset>
         <label class="chk" style="margin:0 0 12px"><input type="checkbox" id="set-concl" checked> 每筆結果顯示摘要中的結論句（不用 AI）</label>
@@ -477,11 +477,12 @@ const CONFIG = {
   ill: { label: '館際合作', url: 'https://ndds.stpi.niar.org.tw/' },   // 全國文獻傳遞服務 NDDS（2025 年起網域由 narl 改為 niar）
   pageSize: 20,
   ai: {
-    // ★★★ 只要填這一行 ★★★
-    // 圖書館的 AI 中繼站網址（Cloudflare Worker，見 tmh-ai-worker.js 與設定說明）。
-    // 填好之後，同仁打中文問題按「查找」就會自動轉檢索式並自動整理重點，完全不必有任何 AI 帳號。
-    // 留空＝沒有中繼站，頁面改用「交棒」：把指令交給使用者自己的 Claude（也是零費用，但要多幾個動作）。
-    endpoint: '',                 // 例如 'https://tmh-ai.你的帳號.workers.dev'
+    // AI 中繼站的位置。預設 '/api/ai' ＝ 和本頁放在同一個網站（Cloudflare Pages 的 _worker.js），
+    // 所以只要 _worker.js 也在同一個倉庫裡、且 Pages 專案已綁定 Workers AI，這裡就不必改。
+    // 若中繼站在別的網域，改填完整網址，例如 'https://tmh-ai.你的帳號.workers.dev'。
+    // 填 '' ＝ 不用中繼站，頁面改用「交棒」：把指令交給使用者自己的 Claude。
+    // 找不到中繼站時（例如放在 GitHub Pages 上），頁面會自動改用交棒模式，不會壞掉。
+    endpoint: '/api/ai',
     accessCode: '',               // 中繼站若設了存取碼就填在這裡（公開頁面上的存取碼只能擋掃描器，不是機密）
     autoSummary: true,            // 查完自動做重點整理（有中繼站時）
     summaryN: 20                  // 重點整理最多納入前幾篇（依相關性排序的前 N 篇；交棒模式也用這個數字）
@@ -496,7 +497,7 @@ const CONFIG = {
     abstractChars: 900            // 整理重點時每篇摘要最多帶幾個字
   },
   showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '3.0（2026-09）'
+  version: '4.0（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1446,7 +1447,7 @@ async function probePubMed(){
 function paintRelayStatus(){
   const el = $('#relay-status'); if (!el) return;
   el.textContent = !relayBase() ? '未設定中繼站：頁面改用「交棒」模式（把指令交給使用者自己的 Claude）。'
-    : S.ai === false ? '中繼站無法連線（' + relayBase() + '）——頁面已自動改用「交棒」模式。'
+    : S.ai === false ? '中繼站無法使用（' + relayBase() + '）——頁面已自動改用「交棒」模式。若這個網站是 Cloudflare Pages，請確認 _worker.js 已上傳，且 Settings → Bindings 已加入 Workers AI（變數名稱 AI）並重新部署。'
     : S.ai === null ? '檢查中…'
     : '中繼站正常（' + relayBase() + '）' + (S.relay && S.relay.used != null ? '，今日已用約 ' + S.relay.used + ' / ' + S.relay.budget + ' neurons' : '') + (S.summaryOff ? '；今日重點整理額度已滿。' : '。');
 }
@@ -1491,6 +1492,8 @@ $('#summarize').addEventListener('click', aiSummarize);
 $('#handoff-summarize').addEventListener('click', handoffSummarize);
 $('#handoff-translate').addEventListener('click', handoffTranslate);
 $('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (relayBase() ? '　AI：圖書館中繼站（Cloudflare Workers AI）' : '　AI：交給使用者自己的 Claude');
+// 中繼站在本站時，順手把狀態頁連結指對
+(() => { const a = document.querySelector('a[href="/api/ai"]'); if (a && relayBase() && relayBase() !== '/api/ai') a.href = relayBase(); })();
 ['#activate-link', '#activate-link-2'].forEach(sel => { const a = $(sel); if (a) a.addEventListener('click', () => { const n = $('#activate-note'); if (n) n.hidden = false; }); });
 (() => {
   const b = $('#copy-activate'); if (!b) return;
