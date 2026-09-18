@@ -497,7 +497,7 @@ const CONFIG = {
     abstractChars: 900            // 整理重點時每篇摘要最多帶幾個字
   },
   showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '4.1（2026-09）'
+  version: '4.2（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1418,14 +1418,17 @@ async function search(opts = {}){
         } else if (hasCJK(question) && S.pubmed !== false) {
           showHint('PubMed 只能用英文檢索，請改用英文關鍵詞，例如：hip fracture delirium prevention。');
         }
-        S.term = applyFilters(base);
-        if (!searchable(base)) {                      // AI 這次沒轉成英文，或使用者關掉 AI 直接打中文
-          setBusy(false);
-          showHint(hasCJK(base)
-            ? 'PubMed 只能用英文檢索，這一次沒有成功轉成英文檢索式。請再按一次「查找」讓 AI 重試，或直接輸入英文關鍵詞（例如 hip fracture delirium prevention）。'
-            : '這個檢索式裡沒有 PubMed 能用的檢索詞，請修改後再查。');
-          return;
+        if (!searchable(base)) {                      // AI 這次給的檢索式不能用（沒有英文檢索詞）
+          if (searchable(question)) {                 // 使用者原本就打英文 → 直接用原文查，不要卡住他
+            base = question; S.translation = null;
+            showHint('AI 這次產生的檢索式不能用，已改用你輸入的原文查詢。想讓 AI 再試一次，請再按一次「查找」。');
+          } else {                                    // 原文是中文，沒有可用的備援 → 只能請他再試或改英文
+            setBusy(false);
+            showHint('PubMed 只能用英文檢索，這一次沒有成功轉成英文檢索式。請再按一次「查找」讓 AI 重試，或直接輸入英文關鍵詞（例如 hip fracture delirium prevention）。');
+            return;
+          }
         }
+        S.term = applyFilters(base);
       }
     }
     // 1. 直接查 PubMed 資料庫
