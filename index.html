@@ -165,6 +165,11 @@
   /* 從 AI 整理的 [編號] 跳過來時閃一下，長清單裡才知道自己落在哪一筆 */
   @keyframes recflash{from{background:var(--brass-tint)}to{background:transparent}}
   .rec.flash{animation:recflash 1.8s ease-out}
+  /* 從整理跳到某一筆之後，給一條回去的路；不給的話十幾個編號就是十幾趟手動捲動 */
+  .backsum{display:inline-block;margin:0 0 8px;font-size:12.5px;color:var(--muted);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+  .backsum:hover{color:var(--brass-deep)}
+  @keyframes refflash{from{background:var(--brass);color:#fff}to{background:var(--brass-tint);color:inherit}}
+  a.ref.flash{animation:refflash 1.4s ease-out}
   @media (prefers-reduced-motion:reduce){.rec.flash{animation:none;outline:2px solid var(--brass);outline-offset:-2px}}
   .rec:first-child{border-top:0}
   .rec .n{font-family:var(--serif);font-size:19px;color:var(--jade);line-height:1.3;padding-top:1px}
@@ -360,7 +365,7 @@
       <details class="promptbox-wrap" id="handoff-sum-box" hidden><summary>沒有複製成功？在這裡全選複製整理指令</summary><textarea class="promptbox" id="handoff-sum-text" readonly spellcheck="false"></textarea></details>
     </div>
     <div class="sum" id="ai-sum" hidden></div>
-    <p class="disc" id="ai-disc" hidden>這段整理只轉述上列摘要的內容，每句都標注來源編號，點編號會開啟該篇的圖書館全文；圖書館拿不到的那幾篇則會帶你到清單上該一筆並展開摘要，旁邊就是其他取得管道；它不是醫療建議，請務必閱讀原文核實。</p>
+    <p class="disc" id="ai-disc" hidden>這段整理只轉述上列摘要的內容，每句都標注來源編號，點編號會帶你到清單上那一篇並展開摘要（那一筆上面就有取得全文的按鈕，看完可以按「回到重點整理」回來）；它不是醫療建議，請務必閱讀原文核實。</p>
     <p class="disc" id="ai-escalate" hidden>覺得這份整理不夠深入？<button type="button" class="linkish" id="escalate">把同一份文獻交給你自己的 Claude 重做一份</button>（免費帳號即可，不佔圖書館額度）。</p>
   </section>
 
@@ -511,7 +516,7 @@ const CONFIG = {
                                   // （每篇摘要帶多少字不在這裡設定：交棒模式與中繼站模式一樣，
                                   //   都走上面 ai.summaryChars 的配額規則，見 abstractBudget。）
   },
-  version: '4.12（2026-09）'
+  version: '4.13（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1069,11 +1074,7 @@ function recHTML(rec){
     : route.kind === 'ovid' ? '經圖書館代理直接開啟 Ovid 上的這一篇（以 DOI 定位）'
     : route.kind === 'clinicalkey' || viaCK ? '經圖書館代理直接開啟 ClinicalKey 上的這一篇（Elsevier 期刊本院訂在 ClinicalKey）'
     : '經圖書館代理開啟出版社網頁' + (needsResolve(rec) ? '（會先解析 DOI）' : '') + '。本院多數期刊訂在 ClinicalKey、Ovid、ProQuest、EBSCO 等平台，出版社網站不一定有訂閱；沒有全文時請改試「EBSCO 全文」';
-  // 點 AI 整理裡的 [編號] 該不該直接開全文？只有「確定拿得到」的才開。
-  // 清單未列此刊（按鈕寫「試試」）和訂閱範圍外都不算確定：直接開多半是把人丟到付費牆或
-  // ERM 的未訂閱畫面，還白白登記一次點閱。館藏清單沒載入時（h 為 null）無從判斷，維持原本行為。
-  const sureFullText = !!(rec.pmc || isOA(rec) || !h || h.status === 'yes');
-  const bPrimary  = '<a class="btn lib' + (h && h.status !== 'yes' && !isOA(rec) ? ' soft' : '') + '" data-route="primary"' + (sureFullText ? ' data-sure="1"' : '') + ' target="_blank" rel="noopener" href="' + esc(fulltextHref(rec)) + '" title="' + esc(primaryTitle) + '">' + primaryLabel + '</a>';
+  const bPrimary  = '<a class="btn lib' + (h && h.status !== 'yes' && !isOA(rec) ? ' soft' : '') + '" data-route="primary" target="_blank" rel="noopener" href="' + esc(fulltextHref(rec)) + '" title="' + esc(primaryTitle) + '">' + primaryLabel + '</a>';
   const bPublisher = (route.kind === 'erm' || route.kind === 'clinicalkey' || route.kind === 'ebsco' || route.kind === 'ovid' || viaCK) && rec.doi && !rec.pmc ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改走出版社網站（經圖書館代理；若圖書館只訂集成平台，可能顯示未訂閱）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '';
   const bErmJournal = (route.kind === 'article' || route.kind === 'ovid') && route.entry && ermJournalLink(route.entry) && !isOA(rec) ? '<a class="btn lib soft" target="_blank" rel="noopener" title="由 ERM 開啟本刊所在平台（Ovid 的 ERM 連結不經代理，院外可能會要求登入）" href="' + esc(ermJournalLink(route.entry)) + '">從 ERM 開本刊</a>' : '';
   const bPubMed   = '<a class="btn" target="_blank" rel="noopener" href="' + esc(pm) + '">PubMed</a>';
@@ -1267,7 +1268,7 @@ function abstractBudget(lens, total, perMax){
 function linkRefs(html, valid){
   return String(html).replace(/\[(\d+(?:\s*[,、;；]\s*\d+)*)\]/g, (m, grp) =>
     grp.split(/\s*[,、;；]\s*/).map(n => valid.has(+n)
-      ? '<a href="#" class="ref" data-ref="' + n + '" title="開啟第 ' + n + ' 篇的圖書館全文（會登記點閱）">[' + n + ']</a>'
+      ? '<a href="#" class="ref" data-ref="' + n + '" title="跳到清單上第 ' + n + ' 篇（會展開摘要；要全文再按那一筆的按鈕）">[' + n + ']</a>'
       : '[' + n + ']').join(''));
 }
 function cleanText(t, max){
@@ -1584,21 +1585,39 @@ $('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (relayBase() ?
 })();
 $('#set-auto').checked = !!CONFIG.ai.autoSummary; $('#set-auto').addEventListener('change', e => { CONFIG.ai.autoSummary = e.target.checked; });
 $('#set-sumn').value = String(CONFIG.ai.summaryN); $('#set-sumn').addEventListener('change', e => { CONFIG.ai.summaryN = +e.target.value; paintAIPanel(); });
-// 摘要裡的 [編號]：確定拿得到全文（PMC、開放取用、館藏訂閱）就直接開，走和主按鈕同一條路、會登記點閱。
-// 拿不到的（訂閱範圍外、清單未列此刊）不要把人丟到付費牆：帶到清單上那一筆、順手展開摘要
-// ——查證一句引用最常要看的就是摘要，而且它已經在本機，不必再連出去——旁邊的 EBSCO、
-// 館際合作、PubMed 也都在那裡。在沙箱裡不用頁內錨點，否則會被當成外部連結開新視窗。
+// 摘要裡的 [編號]：一律帶到清單上那一筆，並把摘要展開。
+// 不直接開全文，是因為：(1) 同一個編號依館藏狀態有兩種行為，使用者從外觀分不出來，
+// 按過一次被丟到付費牆就再也不敢按；(2) 引用編號在期刊、維基、Word 裡的意思本來就是
+// 「跳到那一條」，不是「立刻下載 PDF」；(3) 只是想看看是哪一篇也會在 ERM 登記一次點閱，
+// 把圖書館要拿去報成效的數字灌進大量誤點。要全文就按那一筆上面寫著「圖書館全文」的按鈕。
+// 在沙箱裡不用頁內錨點，否則會被當成外部連結開新視窗。
+function backToSummary(fromRef){
+  document.querySelectorAll('.backsum').forEach(el => el.remove());
+  const li = fromRef && document.getElementById('rec-' + fromRef.dataset.ref);
+  const body = li && li.querySelector('.body');
+  if (!body) return;
+  const back = document.createElement('a');
+  back.href = '#'; back.className = 'backsum'; back.textContent = '↑ 回到重點整理';
+  back.title = '回到整理中剛才那一句';
+  back.addEventListener('click', ev => {
+    ev.preventDefault();
+    back.remove();
+    if (!document.body.contains(fromRef)) { const p = $('#aipanel'); if (p) p.scrollIntoView({ block: 'start' }); return; }
+    fromRef.scrollIntoView({ block: 'center' });            // 回到剛才讀到的那一句，不是整理的開頭
+    fromRef.classList.remove('flash'); void fromRef.offsetWidth; fromRef.classList.add('flash');
+  });
+  body.insertBefore(back, body.firstChild);
+}
 $('#ai-sum').addEventListener('click', e => {
   const a = e.target.closest('a.ref'); if (!a) return;
   e.preventDefault();
   const li = document.getElementById('rec-' + a.dataset.ref);
-  const sure = li && li.querySelector('a.lib[data-route="primary"][data-sure]');
-  if (sure) { sure.click(); return; }
   if (!li) return;
   const btn = li.querySelector('[data-act="abs"]'), box = li.querySelector('.abs');
   if (btn && box && !box.classList.contains('open')) {
     box.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); btn.textContent = '收合摘要';
   }
+  backToSummary(a);
   li.scrollIntoView({ block: 'start' });
   li.classList.remove('flash'); void li.offsetWidth; li.classList.add('flash');   // 重新觸發動畫
 });
