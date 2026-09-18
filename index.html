@@ -497,7 +497,7 @@ const CONFIG = {
     abstractChars: 900            // 整理重點時每篇摘要最多帶幾個字
   },
   showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '4.0（2026-09）'
+  version: '4.1（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -697,7 +697,11 @@ async function esearch(term, retstart){
   if (!r.ok) throw new Error('PubMed 回應 ' + r.status);
   const e = (await r.json()).esearchresult;
   if (!e) throw new Error('PubMed 回傳格式異常');
-  if (e.ERROR) throw new Error('PubMed：' + e.ERROR);
+  if (e.ERROR) {
+    const msg = String(e.ERROR);
+    if (/empty term/i.test(msg)) throw new Error('PubMed 收到的檢索式是空的——通常是因為檢索式裡沒有英文詞（PubMed 不認中文）。請直接用英文關鍵詞，或再按一次「查找」讓 AI 重新產生檢索式。');
+    throw new Error('PubMed：' + msg);
+  }
   return { count: +e.count || 0, ids: e.idlist || [], translation: e.querytranslation || '',
            notFound: (e.errorlist && e.errorlist.phrasesnotfound) || [] };
 }
@@ -744,6 +748,12 @@ function parseEfetch(xml){
 function order(recs, ids){ const m = new Map(recs.map(r => [r.pmid, r])); return ids.map(id => m.get(id)).filter(Boolean); }
 
 /* ---------- 檢索式組合 ---------- */
+// PubMed 會把中文字全部濾掉；若檢索式裡沒有任何英文檢索詞，送過去只會得到一句很難懂的
+// 「Search Backend failed … Empty Term in the request」。所以送出前先自己檢查。
+function searchable(t){
+  const x = String(t || '').replace(/\[[^\]]*\]/g, ' ');            // 去掉 [mh]、[tiab] 這類欄位標籤
+  return (x.match(/[A-Za-z][A-Za-z'\-]+/g) || []).some(w => !/^(AND|OR|NOT)$/i.test(w));
+}
 function applyFilters(base){
   const parts = ['(' + base.trim() + ')'];
   const yrs = +$('#yr').value;
@@ -781,7 +791,7 @@ async function relay(task, payload){
       if (!r.ok) {
         const type = data && data.error && data.error.type;
         const err = new Error((data && data.error && data.error.message) || ('AI 中繼站回應 ' + r.status));
-        err.code = { quota:'QUOTA', auth:'AUTH', origin:'ORIGIN', config:'CONFIG', parse:'PARSE', too_large:'TOO_LARGE', bad_request:'BAD_REQUEST' }[type] || 'HTTP';
+        err.code = { quota:'QUOTA', auth:'AUTH', origin:'ORIGIN', config:'CONFIG', parse:'PARSE', badquery:'BADQUERY', too_large:'TOO_LARGE', bad_request:'BAD_REQUEST' }[type] || 'HTTP';
         err.status = r.status;
         if (err.code !== 'HTTP' || r.status < 500 || attempt === 3) throw err;   // 只有 5xx 值得重試
         lastErr = err;
@@ -964,7 +974,7 @@ function hideHint(){ $('#hint').hidden = true; }
 function paintLedger(es){
   $('#ledger').hidden = false;
   $('#term').value = S.term;
-  $('#count').textContent = S.count ? '共 ' + S.count.toLocaleString() + ' 筆，已載入 ' + (S.records.length + (es ? es.ids.length : 0)) + ' 筆' : '共 0 筆';
+  $('#count').textContent = !es && !S.count ? '查詢中…' : S.count ? '共 ' + S.count.toLocaleString() + ' 筆，已載入 ' + (S.records.length + (es ? es.ids.length : 0)) + ' 筆' : '共 0 筆';
   const pmUrl = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(S.term) + '&sort=' + ($('#sort').value === 'pub_date' ? 'date' : 'relevance');
   $('#open-pubmed').href = pmUrl;
   const st = $('#strategy');
@@ -1384,7 +1394,10 @@ async function search(opts = {}){
       $('#summarize').disabled = false; $('#summarize').textContent = '請 AI 整理重點（只依據上列文獻的摘要）';
       $('#handoff-sum-note').hidden = true; $('#handoff-sum-box').hidden = true; $('#handoff-note').hidden = true;
       if (!opts.keepHint) hideHint();
-      if (rawTerm) { S.term = rawTerm; if (!S.question) S.question = question; }
+      if (rawTerm) {
+        S.term = rawTerm; if (!S.question) S.question = question;
+        if (!searchable(rawTerm)) { setBusy(false); showHint('這個檢索式裡沒有 PubMed 能用的英文詞。PubMed 只認英文，請改用英文關鍵詞（例如 hip fracture delirium prevention）再查。'); return; }
+      }
       else {
         S.question = question; let base = question;
         if (S.ai && $('#useai').checked) {
@@ -1392,6 +1405,7 @@ async function search(opts = {}){
           try { S.translation = await aiTranslate(question); base = S.translation.query; }
           catch (e) {
             if (e.code === 'NOT_SEARCHABLE') { setBusy(false); showHint('AI 判斷這個問題不適合用 PubMed 查：' + e.message + ' 請改成醫學或臨床相關的問題。'); return; }
+            if (e.code === 'BADQUERY') { setBusy(false); showHint('AI 這次沒有給出可用的英文檢索式（系統已自動重試過）。請再按一次「查找」，或直接輸入英文關鍵詞。'); return; }
             if (e.code === 'QUOTA' || e.code === 'NO_RELAY' || e.code === 'CONFIG') {   // 中繼站沒額度或沒設好：改走交棒，並把按鈕叫出來
               S.ai = false; paintPills(); paintHandoff(); setBusy(false);
               showHint((e.code === 'QUOTA' ? '圖書館今天的 AI 額度已用完（每天早上 8 點重置）。' : 'AI 中繼站目前無法使用。') +
@@ -1405,11 +1419,19 @@ async function search(opts = {}){
           showHint('PubMed 只能用英文檢索，請改用英文關鍵詞，例如：hip fracture delirium prevention。');
         }
         S.term = applyFilters(base);
+        if (!searchable(base)) {                      // AI 這次沒轉成英文，或使用者關掉 AI 直接打中文
+          setBusy(false);
+          showHint(hasCJK(base)
+            ? 'PubMed 只能用英文檢索，這一次沒有成功轉成英文檢索式。請再按一次「查找」讓 AI 重試，或直接輸入英文關鍵詞（例如 hip fracture delirium prevention）。'
+            : '這個檢索式裡沒有 PubMed 能用的檢索詞，請修改後再查。');
+          return;
+        }
       }
     }
     // 1. 直接查 PubMed 資料庫
     if (S.pubmed !== false) {
       setBusy(true, '正在查詢 PubMed…');
+      paintLedger(null);                              // 先把「送出的檢索式」顯示出來：萬一查詢失敗，也看得到送了什麼
       try {
         const es = await esearch(S.term, S.retstart);
         S.pubmed = true; S.src = 'direct'; S.count = es.count; paintPills();
