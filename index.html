@@ -183,8 +183,6 @@
   .tag.id{background:transparent;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11.5px;text-decoration:none}
   a.tag.id:hover{border-color:var(--jade);color:var(--jade-deep)}
   .acts{display:flex;flex-wrap:wrap;gap:8px}
-  .concl{margin:0 0 8px;padding:6px 10px;background:var(--soft);border-radius:6px;font-size:13.5px;line-height:1.6;max-width:74ch;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .concl b{color:var(--jade-deep);font-weight:500;margin-right:6px}
   .abs{display:none;margin-top:12px;padding:12px 14px;background:var(--soft);border-radius:8px;font-size:14px;line-height:1.75;max-width:74ch}
   .abs.open{display:block}
   .abs b{color:var(--jade-deep)}
@@ -411,7 +409,6 @@
           <p class="small">中繼站就是同一個網站裡的 <code>_worker.js</code>（Cloudflare Pages）。要讓它運作，只需在 Pages 專案的 Settings → Bindings → Add → Workers AI，變數名稱填 <code>AI</code>，再重新部署一次。狀態頁在 <a href="/api/ai" target="_blank" rel="noopener">/api/ai</a>。中繼站不在時，頁面會自動改用「交棒」模式，查詢與全文都不受影響。</p>
           <label class="chk" style="margin:6px 0 0"><input type="checkbox" id="set-auto" checked> 查完自動做 AI 重點整理</label>
         </fieldset>
-        <label class="chk" style="margin:0 0 12px"><input type="checkbox" id="set-concl" checked> 每筆結果顯示摘要中的結論句（不用 AI）</label>
         <label class="field">AI 重點整理納入的篇數（依相關性取前 N 篇；交給 Claude 整理時也適用）。送給 AI 的摘要總字元是固定的，由篇數平分：<strong>10 篇＝每篇約 2,400 字元</strong>，多數 PubMed 摘要可以完整帶入；20 篇＝每篇約 1,200 字元，涵蓋面較廣但多數摘要會被切掉結果與結論。額度成本兩者相近
           <select id="set-sumn"><option selected>10</option><option>20</option></select>
         </label>
@@ -508,10 +505,9 @@ const CONFIG = {
     newChatUrl: 'https://claude.ai/new',
     maxUrlLength: 7000            // ?q= 帶入的網址超過這個長度就不帶，改請使用者貼上（剪貼簿裡已經有）
                                   // （每篇摘要帶多少字不在這裡設定：交棒模式與中繼站模式一樣，
-                                  //   都用上面的 ai.summaryChars 除以篇數，10 篇時每篇 2,400 字元。）
+                                  //   都走上面 ai.summaryChars 的配額規則，見 abstractBudget。）
   },
-  showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '4.10（2026-09）'
+  version: '4.11（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1022,23 +1018,8 @@ function paintLedger(es){
   if (es && es.translation) { tb.hidden = false; $('#translation').textContent = es.translation; } else tb.hidden = true;
 }
 
-// 摘要裡的結論：優先用結構式摘要的 CONCLUSIONS／INTERPRETATION 段；非結構式摘要取最後一句（會標示來源不同）
+// 把一筆文獻的摘要接成一段純文字（送去 AI 整理、以及交棒指令都用它）
 const absText = rec => (rec.abstractParts || []).map(p => (p.label ? p.label + ': ' : '') + p.text).join(' ');
-// 取最後一句：只在「句點＋空白＋大寫或左括號」處斷句，才不會被 0.62、95% CI 這類小數點切斷
-function lastSentence(t){
-  const re = /[.!?]["'\)\]]*\s+(?=[A-Z("])/g;
-  let start = 0;
-  while (re.exec(t) !== null) start = re.lastIndex;
-  return t.slice(start).trim();
-}
-function conclusionOf(rec){
-  const ps = rec.abstractParts || []; if (!ps.length) return null;
-  const hit = ps.find(p => /conclusion|interpretation|implication|結論/i.test(p.label || ''));
-  if (hit && hit.text) return { label: '結論', text: hit.text };
-  if (ps.length > 1) return null;                                  // 結構式但沒有結論段：不猜
-  const t = lastSentence(String(ps[0].text || ''));
-  return t.length > 30 ? { label: '摘要末句', text: t } : null;
-}
 function citeLine(rec){
   const au = rec.authors || []; let a = au.slice(0, 3).join(', '); if (au.length > 3) a += ', et al';
   const j = [rec.journal, rec.year].filter(Boolean).join('. ');
@@ -1070,7 +1051,6 @@ function recHTML(rec){
   tags.push('<span class="tag id">PMID ' + esc(rec.pmid) + '</span>');
   if (rec.doi) tags.push('<a class="tag id" target="_blank" rel="noopener" title="出版社原站（不經圖書館）" href="https://doi.org/' + esc(rec.doi) + '">DOI ' + esc(rec.doi) + '</a>');
   const hasAbs = rec.abstractParts && rec.abstractParts.length;
-  const concl = conclusionOf(rec);
   const oor = outOfRange(rec, h);          // 期刊有訂，但這一篇的年份不在訂閱範圍內
   const primaryLabel = rec.pmc ? '全文（PMC 免費）' : isOA(rec) && CONFIG.library.fulltextMode !== 'direct' ? '全文（免費）'
     : h && h.status === 'no' ? (route.kind === 'clinicalkey' ? '試試 ClinicalKey' : route.kind === 'ovid' ? '試試 Ovid' : '試試圖書館')
@@ -1117,7 +1097,6 @@ function recHTML(rec){
     '<h3><a target="_blank" rel="noopener" href="' + esc(pm) + '">' + esc(rec.title) + '</a></h3>' +
     '<p class="cite">' + esc(citeLine(rec)) + '</p>' +
     (rec.why ? '<p class="why">' + esc(rec.why) + '</p>' : '') +
-    (CONFIG.showConclusion && concl ? '<p class="concl" title="' + esc(concl.text) + '"><b>' + concl.label + '</b>' + esc(concl.text) + '</p>' : '') +
     '<div class="tags">' + tags.join('') + '</div><div class="acts">' + acts + '</div>' + hintLine + abs + '</div>';
 }
 function renderRecords(recs, start){
@@ -1597,7 +1576,6 @@ $('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (relayBase() ?
 })();
 $('#set-auto').checked = !!CONFIG.ai.autoSummary; $('#set-auto').addEventListener('change', e => { CONFIG.ai.autoSummary = e.target.checked; });
 $('#set-sumn').value = String(CONFIG.ai.summaryN); $('#set-sumn').addEventListener('change', e => { CONFIG.ai.summaryN = +e.target.value; paintAIPanel(); });
-$('#set-concl').checked = !!CONFIG.showConclusion; $('#set-concl').addEventListener('change', e => { CONFIG.showConclusion = e.target.checked; rerenderAll(); });
 // 摘要裡的 [編號]：直接開啟該篇的「圖書館全文」（走同一條路，會登記點閱）；在沙箱裡不用頁內錨點，否則會被當成外部連結開新視窗
 $('#ai-sum').addEventListener('click', e => {
   const a = e.target.closest('a.ref'); if (!a) return;
