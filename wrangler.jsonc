@@ -1,0 +1,27 @@
+{
+  // 找文獻 AI 中繼站 — Cloudflare Worker 設定檔
+  // 用途：把這個檔案和 tmh-ai-worker.js 一起放進 GitHub 倉庫的最上層，
+  //       再讓 Cloudflare 直接從 GitHub 部署，就完全不必把程式碼貼進網頁編輯器。
+  //
+  // 這裡已經幫你設好：Workers AI 綁定（AI）與允許呼叫的網站（ALLOWED_ORIGINS），
+  // 所以主控台裡的「Bindings」「Variables」兩個步驟都可以省略。
+
+  "name": "tmh-ai",
+  "main": "tmh-ai-worker.js",
+  "compatibility_date": "2026-09-01",
+
+  // Workers AI：程式裡用 env.AI 呼叫
+  "ai": { "binding": "AI" },
+
+  // 允許呼叫中繼站的網站。之後圖書館網頁若換網址，改這裡再存檔即可（Cloudflare 會自動重新部署）。
+  "vars": {
+    "ALLOWED_ORIGINS": "https://cheng1276.github.io",
+    "DAILY_NEURONS": "9200"
+  }
+
+  // 選用：要記錄用量與快取時，先在主控台建立一個 KV namespace，
+  // 把它的 ID 填進下面這段、去掉前面的註解符號，並記得在上一行的 } 後面加逗號。
+  // "kv_namespaces": [
+  //   { "binding": "QUOTA", "id": "把 KV namespace 的 ID 貼在這裡" }
+  // ]
+}
