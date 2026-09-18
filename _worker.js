@@ -29,7 +29,7 @@
  */
 const API = '/api/ai';   // 中繼站的路徑；其餘網址一律當成網站檔案
 
-const VERSION = '3.0 (2026-09) / Pages';
+const VERSION = '3.1 (2026-09) / Pages';
 // 提示詞版本。改動任何提示詞就把它加一 —— 快取鍵含這個版本，舊的結果會自動作廢。
 // （之前改了提示詞卻沒換快取鍵，同一個問題一直回舊的短檢索式，改什麼都看不出效果。）
 const PROMPT_V = 'p5';
@@ -114,6 +114,60 @@ const MODELS = [
 ];
 const priceOf = id => (MODELS.find(m => m.id === id) || { neurons: [20, 60] }).neurons;
 
+/* ---------------- Claude（選用）----------------
+   Variables 加一個 ANTHROPIC_API_KEY 就會改走 Anthropic 的 API；不填就完全照舊。
+   這條路是真的會計費的，所以下面配了每日美元上限。金鑰放在 Worker 的 Variables，
+   網頁原始碼裡不會有它。價格單位：每百萬 token（輸入, 輸出），用來估算今日花費。 */
+const CLAUDE_PRICES = {
+  'claude-haiku-4-5-20251001': [1, 5],
+  'claude-sonnet-5':           [2, 10],
+  'claude-opus-5':             [5, 25],
+  'claude-fable-5-1':          [10, 50]
+};
+const CLAUDE_DEFAULT = 'claude-haiku-4-5-20251001';   // 這個用途夠用，而且是裡面最便宜的
+const claudeKey = env => String(env.ANTHROPIC_API_KEY || '').trim();
+const claudeOn = env => !!claudeKey(env);
+const claudeModel = env => String(env.CLAUDE_MODEL || '').trim() || CLAUDE_DEFAULT;
+const usdCapOf = env => { const v = parseFloat(env.DAILY_USD); return v > 0 ? v : 2; };
+const engineOf = env => (claudeOn(env) ? 'claude' : 'workers-ai');
+
+async function runClaude(env, messages, maxTokens) {
+  const started = Date.now();
+  const model = claudeModel(env);
+  const sys = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
+  const rest = messages.filter(m => m.role !== 'system').map(m => ({ role: m.role, content: String(m.content) }));
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': claudeKey(env), 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model, max_tokens: maxTokens, temperature: 0.3, system: sys, messages: rest })
+  });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error('Claude API ' + r.status + '：' + body.slice(0, 200));
+  }
+  const j = await r.json();
+  const text = stripThink((Array.isArray(j.content) ? j.content : [])
+    .filter(c => c && c.type === 'text').map(c => c.text).join('').trim());
+  const u = j.usage || {};
+  const inTok = u.input_tokens || estTokens(messages.map(m => m.content).join(' '));
+  const outTok = u.output_tokens || estTokens(text);
+  const p = CLAUDE_PRICES[model] || CLAUDE_PRICES[CLAUDE_DEFAULT];
+  return {
+    text, stop: j.stop_reason === 'max_tokens' ? 'max_tokens' : 'end_turn',
+    model, ms: Date.now() - started, neurons: 0,
+    usd: (inTok / 1e6) * p[0] + (outTok / 1e6) * p[1],
+    tokens: { in: inTok, out: outTok }
+  };
+}
+// 有金鑰就用 Claude；Claude 叫不動時（金鑰過期、對方故障）退回 Workers AI，不讓服務整個斷掉
+async function runEngine(env, preferred, messages, maxTokens) {
+  if (claudeOn(env)) {
+    try { return await runClaude(env, messages, maxTokens); }
+    catch (e) { if (!env.AI) throw e; }
+  }
+  return runChain(env, preferred, messages, maxTokens);
+}
+
 /* ---------------- 小工具 ---------------- */
 const json = (obj, status, headers) => new Response(JSON.stringify(obj), {
   status: status || 200, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8' }, headers || {})
@@ -160,6 +214,32 @@ function cors(request, env, selfOrigin) {
 async function usedToday(env) {
   if (!env.QUOTA) return null;
   try { return +(await env.QUOTA.get('n:' + today())) || 0; } catch (e) { return null; }
+}
+// 今日用量：Workers AI 算 neurons、Claude 算美元，但守門規則一樣——
+// 先停「重點整理」把剩下的留給「轉檢索式」，全滿才整個停。
+async function spendToday(env) {
+  if (claudeOn(env)) { const u = await usdToday(env); return u == null ? null : { used: u, cap: usdCapOf(env), unit: 'usd' }; }
+  const n = await usedToday(env); return n == null ? null : { used: n, cap: +env.DAILY_NEURONS || 9200, unit: 'neurons' };
+}
+const spendLabel = sp => !sp ? '未統計（未綁 KV）'
+  : sp.unit === 'usd' ? 'US$' + sp.used.toFixed(3) + ' / US$' + sp.cap.toFixed(2)
+  : Math.round(sp.used).toLocaleString('en-US') + ' / ' + sp.cap.toLocaleString('en-US') + ' neurons';
+async function usdToday(env) {
+  if (!env.QUOTA) return null;
+  try { return +(await env.QUOTA.get('u:' + today())) || 0; } catch (e) { return null; }
+}
+async function addUsd(env, usd) {
+  if (!env.QUOTA || !usd) return;
+  try {
+    const key = 'u:' + today();
+    const cur = +(await env.QUOTA.get(key)) || 0;
+    await env.QUOTA.put(key, (cur + usd).toFixed(6), { expirationTtl: 70 * 86400 });
+  } catch (e) {}
+}
+async function addSpend(env, out) {          // 一次呼叫之後記帳：Workers AI 記 neurons、Claude 記美元
+  if (!out) return;
+  if (out.usd) await addUsd(env, out.usd);
+  else await addUsage(env, out.neurons);
 }
 async function addUsage(env, n) {
   if (!env.QUOTA || !n) return;
@@ -407,7 +487,7 @@ function normalizeTranslation(j) {
 async function doTranslate(env, body) {
   const question = clip(body.question, 2000).trim();
   if (!question) return fail('bad_request', '沒有收到問題', 400);
-  const key = await hashKey('t|' + PROMPT_V + '|' + question);   // 提示詞一改，快取自動換新
+  const key = await hashKey('t|' + PROMPT_V + '|' + engineOf(env) + '|' + question);   // 提示詞或引擎一改，快取自動換新
   const hit = await cacheGet(env, key);
   await bumpStats(env, { t: 1, q: key.slice(0, 8), c: hit && looksLikeQuery(hit.query) ? 1 : 0 });
   if (hit && looksLikeQuery(hit.query)) return json({ ok: true, cached: true, translation: hit });   // 快取也要通過檢查才能用
@@ -421,8 +501,8 @@ async function doTranslate(env, body) {
   for (let i = 0; i < 3; i++) {                                        // 吐不出 JSON、或檢索式不能用，就再試一次
     // 提醒併進同一則 user 訊息：有些模型（如 Gemma）的對話樣板不接受連續兩則 user 訊息
     const messages = [base[0], { role: 'user', content: base[1].content + (i === 0 ? '' : NUDGE) }];
-    out = await runChain(env, pickModel(body, env.MODEL_TRANSLATE), messages, i === 0 ? 2100 : 2300);   // 檢索式長、又要三條替代式，留足空間
-    await addUsage(env, out.neurons);
+    out = await runEngine(env, env.MODEL_TRANSLATE, messages, i === 0 ? 2100 : 2300);   // 檢索式長、又要三條替代式，留足空間
+    await addSpend(env, out);
     lastText = out.text;
     tried.push({ model: out.model, stop: out.stop, text: String(out.text || '').slice(0, 500) });
     const j = parseLines(out.text, out.stop === 'max_tokens') || extractJSON(out.text);   // 先用逐行格式，舊的 JSON 格式仍然讀得懂
@@ -445,7 +525,6 @@ async function doTranslate(env, body) {
 }
 
 // 網頁或診斷頁可以指定模型，但只能從上面的白名單挑（避免被拿去跑別的東西）
-const pickModel = (body, fallback) => (body && body.model && MODELS.some(m => m.id === body.model)) ? body.model : fallback;
 
 async function doSummarize(env, body) {
   const question = clip(body.question, 600).trim();
@@ -461,7 +540,7 @@ async function doSummarize(env, body) {
     .filter(r => r.n && r.abstract);
   if (!recs.length) return fail('bad_request', '沒有收到可整理的文獻', 400);
 
-  const key = await hashKey('s|' + PROMPT_V + '|' + question + '|' + recs.map(r => r.n + ':' + r.abstract.length + ':' + r.title.slice(0, 40)).join('|'));
+  const key = await hashKey('s|' + PROMPT_V + '|' + engineOf(env) + '|' + question + '|' + recs.map(r => r.n + ':' + r.abstract.length + ':' + r.title.slice(0, 40)).join('|'));
   const hit = await cacheGet(env, key);
   await bumpStats(env, { s: 1, c: hit ? 1 : 0 });
   if (hit) return json({ ok: true, cached: true, text: hit });
@@ -470,8 +549,8 @@ async function doSummarize(env, body) {
   const user = '問題：' + (question || '（未提供，請依文獻內容整理）') + '\n\n文獻清單：\n' + list;
   const messages = [{ role: 'system', content: SYS_SUMMARIZE }, { role: 'user', content: user }];
 
-  let out = await runChain(env, pickModel(body, env.MODEL_SUMMARY), messages, 1800);
-  await addUsage(env, out.neurons);
+  let out = await runEngine(env, env.MODEL_SUMMARY, messages, 1800);
+  await addSpend(env, out);
   let text = out.text, neurons = out.neurons;
 
   if (out.stop === 'max_tokens' || !/最相關/.test(text)) {            // 被輸出上限截斷：接續一次
@@ -480,7 +559,7 @@ async function doSummarize(env, body) {
       { role: 'assistant', content: text },
       { role: 'user', content: '你上一次的回覆被截斷了（結尾是：…' + tail + '）。請直接從中斷處接續寫完剩下的內容，不要重複已寫過的文字、不要重寫小標，最後仍以「最相關：[編號], …」結尾。' }
     ]), 900);
-    await addUsage(env, cont.neurons);
+    await addSpend(env, cont);
     neurons += cont.neurons;
     text = text.replace(/\s*\[?\s*$/, '') + cont.text;
     if (cont.stop === 'max_tokens') {
@@ -495,8 +574,8 @@ async function doSummarize(env, body) {
 }
 
 /* ---------------- 首頁與自我測試 ---------------- */
-function statusPage(env, used, stats) {
-  const budget = +env.DAILY_NEURONS || 9200;
+function statusPage(env, sp, stats) {
+  const cl = claudeOn(env);
   const nf = n => (+n || 0).toLocaleString('en-US');
   const rows30 = (stats && stats.length) ? stats : [];
   const d0 = rows30[0] || { o: 0, t: 0, s: 0, c: 0, q: [] };
@@ -506,16 +585,18 @@ function statusPage(env, used, stats) {
     + (r.c ? '（其中 ' + nf(r.c) + ' 次用快取回答，沒花額度）' : '');
   const rows = [
     ['版本', VERSION + '　提示詞 ' + PROMPT_V],
-    ['Workers AI 綁定（AI）', env.AI ? '✅ 已綁定' : '❌ 未綁定 —— 請到 Pages 專案 Settings → Bindings → Add → Workers AI，變數名稱填 AI，再重新部署'],
+    ['使用的 AI', cl ? '🟣 Claude（' + claudeModel(env) + '）——因為 Variables 裡設了 ANTHROPIC_API_KEY。這條路會向 Anthropic 計費，上限見下一列；Claude 叫不動時自動退回 Workers AI'
+                     : '🟢 Cloudflare Workers AI（免費額度）——要改用 Claude，在 Variables 加一個 ANTHROPIC_API_KEY 即可'],
+    ['Workers AI 綁定（AI）', env.AI ? '✅ 已綁定' : (cl ? '⚪ 未綁定（目前走 Claude，但建議還是綁著當備援）' : '❌ 未綁定 —— 請到 Pages 專案 Settings → Bindings → Add → Workers AI，變數名稱填 AI，再重新部署')],
     ['KV 綁定（QUOTA，選用）', env.QUOTA ? '✅ 已綁定（可統計用量、快取結果）' : '⚪ 未綁定（仍可運作，但沒有用量統計與快取）'],
     ['允許的網站', env.ALLOWED_ORIGINS ? String(env.ALLOWED_ORIGINS) : '✅ 只允許本站自己呼叫（預設，不必設定）'],
     ['存取碼（ACCESS_CODE，選用）', env.ACCESS_CODE ? '已設定' : '未設定'],
-    ['今日已用（估計）', used == null ? '未統計（未綁 KV）' : used + ' / ' + budget + ' neurons'],
+    ['今日已用（估計）', spendLabel(sp) + (cl ? '　（每日上限可用 DAILY_USD 調整；用到 85% 會先停重點整理，保住轉檢索式）' : '')],
     ['今日使用', env.QUOTA ? useLine(d0) + '　不重複問題 ' + nf((d0.q || []).length) + ' 個' : '未統計（未綁 KV）'],
     ['最近 7 天', env.QUOTA ? useLine(w7) : '未統計（未綁 KV）'],
     ['最近 30 天', env.QUOTA ? useLine(w30) : '未統計（未綁 KV）'],
-    ['轉檢索式模型', env.MODEL_TRANSLATE || MODELS[0].id],
-    ['重點整理模型', env.MODEL_SUMMARY || MODELS[0].id]
+    ['轉檢索式模型', cl ? claudeModel(env) : (env.MODEL_TRANSLATE || MODELS[0].id)],
+    ['重點整理模型', cl ? claudeModel(env) : (env.MODEL_SUMMARY || MODELS[0].id)]
   ];
   return `<!doctype html><html lang="zh-Hant-TW"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>找文獻 AI 中繼站</title>
@@ -536,19 +617,15 @@ ${rows30.slice(0, 14).map(r => '<tr><td style="width:auto">' + r.day + '</td><td
 
 <p style="margin-top:22px"><strong>自我測試</strong>（會實際用掉一點額度）：</p>
 <p><input id="qq" value="老年髖部骨折術後如何預防譫妄？" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #D5DFDA;border-radius:6px;box-sizing:border-box"></p>
-<p style="font-size:14px">模型：<select id="mm" style="font:inherit;padding:6px 8px;border:1px solid #D5DFDA;border-radius:6px">
-<option value="">（依預設順序）</option>${MODELS.map(m => '<option value="' + m.id + '">' + m.id + '</option>').join('')}
-</select>　<span style="color:#5B6A70;font-size:13px">換模型比較整理品質；選好之後可把它填進 Variables 的 MODEL_SUMMARY</span></p>
 <button onclick="t('translate')">測試：轉檢索式</button><button class="alt" onclick="t('summarize')">測試：重點整理</button>
 <pre id="out" hidden></pre>
 <script>
 async function t(task){
   const o=document.getElementById('out'); o.hidden=false; o.textContent='測試中…（第一次可能要 10–30 秒）';
   const q = (document.getElementById('qq').value || '老年髖部骨折術後如何預防譫妄？').trim();
-  const mm = document.getElementById('mm').value;
   const body = task==='translate'
-    ? {task:'translate', question:q, model:mm}
-    : {task:'summarize', question:q, model:mm, records:[
+    ? {task:'translate', question:q}
+    : {task:'summarize', question:q, records:[
         {n:1,title:'Multicomponent intervention to prevent delirium after hip fracture surgery',meta:'Lancet；2024；隨機對照試驗',abstract:'We randomised 480 patients aged 70 or older to a multicomponent intervention or usual care. Delirium incidence was 18% versus 31% (RR 0.58, 95% CI 0.42-0.80).'},
         {n:2,title:'Melatonin for delirium prevention in older surgical patients: a meta-analysis',meta:'Lancet Glob Health；2023；統合分析',abstract:'Pooled analysis of 12 trials (n=2340) found melatonin reduced delirium incidence (OR 0.62, 95% CI 0.45-0.86) with substantial heterogeneity (I2=68%).'}]};
   const t0=Date.now();
@@ -585,19 +662,21 @@ async function api(request, env, url) {
     if (request.method === 'GET') {
       if (url.pathname === API + '/ping') {                 // 網頁開啟時的探測：不呼叫 AI，不花額度
         await bumpStats(env, { o: 1 });                     // 順便當成「有人打開找文獻」的計次
-        const used = await usedToday(env);
-        const budget = +env.DAILY_NEURONS || 9200;
-        return json({ ok: true, version: VERSION, ai: !!env.AI, kv: !!env.QUOTA, used, budget,
-                      summaryOff: used != null && used >= budget * 0.85 }, 200, c.headers);
+        const sp = await spendToday(env);
+        return json({ ok: true, version: VERSION, ai: !!env.AI || claudeOn(env), kv: !!env.QUOTA,
+                      engine: engineOf(env), usedText: spendLabel(sp),
+                      used: sp && sp.unit === 'neurons' ? sp.used : null,
+                      budget: sp && sp.unit === 'neurons' ? sp.cap : null,
+                      summaryOff: !!(sp && sp.used >= sp.cap * 0.85) }, 200, c.headers);
       }
-      const [used2, stats] = await Promise.all([usedToday(env), statsDays(env, 30)]);
-      return new Response(statusPage(env, used2, stats), { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+      const [sp2, stats] = await Promise.all([spendToday(env), statsDays(env, 30)]);
+      return new Response(statusPage(env, sp2, stats), { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
     }
 
     if (request.method !== 'POST') return fail('method', '只接受 POST', 405, c.headers);
     if (!c.ok) return fail('origin', '這個網站不在允許清單中（預設只允許本站呼叫；要開放其他網站請設定 ALLOWED_ORIGINS）', 403, c.headers);
     if (env.ACCESS_CODE && request.headers.get('x-access-code') !== env.ACCESS_CODE) return fail('auth', '存取碼不正確', 401, c.headers);
-    if (!env.AI) return fail('config', '還沒有綁定 Workers AI（Pages 專案 Settings → Bindings → Add → Workers AI，變數名稱填 AI，再重新部署）', 500, c.headers);
+    if (!env.AI && !claudeOn(env)) return fail('config', '還沒有綁定 Workers AI（Pages 專案 Settings → Bindings → Add → Workers AI，變數名稱填 AI，再重新部署）', 500, c.headers);
 
     let body;
     try {
@@ -609,19 +688,17 @@ async function api(request, env, url) {
     const task = body && body.task;
     if (task !== 'translate' && task !== 'summarize') return fail('bad_request', 'task 只能是 translate 或 summarize', 400, c.headers);
 
-    // 額度守門：先保住「轉檢索式」這個核心功能
-    const used = await usedToday(env);
-    const budget = +env.DAILY_NEURONS || 9200;
-    if (used != null) {
-      if (task === 'summarize' && used >= budget * 0.85) return fail('quota', '今天的 AI 重點整理額度已用完（每天台灣時間早上 8 點重置）', 429, c.headers);
-      if (used >= budget) return fail('quota', '今天的 AI 額度已用完（每天台灣時間早上 8 點重置）', 429, c.headers);
+    // 額度守門：先保住「轉檢索式」這個核心功能。Claude 模式守的是金額，Workers AI 守的是 neurons。
+    const sp = await spendToday(env);
+    if (sp != null) {
+      if (task === 'summarize' && sp.used >= sp.cap * 0.85) return fail('quota', '今天的 AI 重點整理額度已用完（每天台灣時間早上 8 點重置）', 429, c.headers);
+      if (sp.used >= sp.cap) return fail('quota', '今天的 AI 額度已用完（每天台灣時間早上 8 點重置）', 429, c.headers);
     }
 
     try {
       const res = task === 'translate' ? await doTranslate(env, body) : await doSummarize(env, body);
       Object.entries(c.headers).forEach(([k, v]) => res.headers.set(k, v));
-      const left = used == null ? null : Math.max(0, budget - used);
-      if (left != null) res.headers.set('x-neurons-left', String(left));
+      if (sp && sp.unit === 'neurons') res.headers.set('x-neurons-left', String(Math.max(0, sp.cap - sp.used)));
       return res;
     } catch (e) {
       const msg = String(e && e.message || e);
