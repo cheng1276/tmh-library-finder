@@ -497,7 +497,7 @@ const CONFIG = {
     abstractChars: 900            // 整理重點時每篇摘要最多帶幾個字
   },
   showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '4.2（2026-09）'
+  version: '4.3（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -791,6 +791,7 @@ async function relay(task, payload){
       if (!r.ok) {
         const type = data && data.error && data.error.type;
         const err = new Error((data && data.error && data.error.message) || ('AI 中繼站回應 ' + r.status));
+        if (data && data.raw) err.raw = String(data.raw).slice(0, 2000);
         err.code = { quota:'QUOTA', auth:'AUTH', origin:'ORIGIN', config:'CONFIG', parse:'PARSE', badquery:'BADQUERY', too_large:'TOO_LARGE', bad_request:'BAD_REQUEST' }[type] || 'HTTP';
         err.status = r.status;
         if (err.code !== 'HTTP' || r.status < 500 || attempt === 3) throw err;   // 只有 5xx 值得重試
@@ -969,6 +970,8 @@ function setBusy(on, msg){
 }
 function showStatus(msg, kind){ const st = $('#status'); st.className = kind || ''; st.textContent = msg; }
 function showHint(msg){ const h = $('#hint'); h.textContent = msg; h.hidden = false; }
+function showHintHTML(html){ const h = $('#hint'); h.innerHTML = html; h.hidden = false; }
+const rawBox = e => e && e.raw ? '<details class="promptbox-wrap"><summary>看看 AI 這次回了什麼（給圖書館管理者）</summary><textarea class="promptbox" readonly spellcheck="false">' + esc(e.raw) + '</textarea></details>' : '';
 function hideHint(){ $('#hint').hidden = true; }
 
 function paintLedger(es){
@@ -1404,15 +1407,21 @@ async function search(opts = {}){
           setBusy(true, 'AI 正在把問題轉成 PubMed 檢索式…');
           try { S.translation = await aiTranslate(question); base = S.translation.query; }
           catch (e) {
+            // AI 出任何狀況都不該擋住查詢：只要使用者自己打的字能查，就照查；真的沒有備援時才停下來。
             if (e.code === 'NOT_SEARCHABLE') { setBusy(false); showHint('AI 判斷這個問題不適合用 PubMed 查：' + e.message + ' 請改成醫學或臨床相關的問題。'); return; }
-            if (e.code === 'BADQUERY') { setBusy(false); showHint('AI 這次沒有給出可用的英文檢索式（系統已自動重試過）。請再按一次「查找」，或直接輸入英文關鍵詞。'); return; }
-            if (e.code === 'QUOTA' || e.code === 'NO_RELAY' || e.code === 'CONFIG') {   // 中繼站沒額度或沒設好：改走交棒，並把按鈕叫出來
-              S.ai = false; paintPills(); paintHandoff(); setBusy(false);
-              showHint((e.code === 'QUOTA' ? '圖書館今天的 AI 額度已用完（每天早上 8 點重置）。' : 'AI 中繼站目前無法使用。') +
-                       (hasCJK(question) ? '中文問題請改按「請 Claude 轉成檢索式」，會開啟你自己的 Claude；或直接輸入英文關鍵詞查詢。' : '已改用你輸入的英文原文查詢。'));
-              if (hasCJK(question)) return;
-            } else {
-              showHint('AI 轉換檢索式失敗（' + e.message + '），改用你輸入的原文查詢。' + (hasCJK(question) ? ' 注意：PubMed 只認英文，中文原文可能查不到。' : ''));
+            if (e.code === 'QUOTA' || e.code === 'NO_RELAY' || e.code === 'CONFIG') { S.ai = false; paintPills(); paintHandoff(); }
+            const why = e.code === 'QUOTA' ? '圖書館今天的 AI 額度已用完（每天早上 8 點重置）。'
+                      : e.code === 'BADQUERY' ? 'AI 這次沒有給出可用的英文檢索式（已自動重試過）。'
+                      : (e.code === 'NO_RELAY' || e.code === 'CONFIG') ? 'AI 中繼站目前無法使用。'
+                      : 'AI 轉換檢索式失敗（' + esc(e.message) + '）。';
+            if (searchable(question)) {                 // 使用者打的是英文 → 直接用原文查，不要卡住他
+              S.translation = null;
+              showHintHTML(why + '已改用你輸入的原文查詢；想讓 AI 再試一次，請再按一次「查找」。' + rawBox(e));
+            } else {                                    // 中文問題又沒有 AI 可用 → 只能請他改英文或用交棒
+              setBusy(false);
+              showHintHTML(why + (relayOn() ? '請再按一次「查找」讓 AI 重試，或直接輸入英文關鍵詞（例如 hip fracture delirium prevention）。'
+                                            : '中文問題請改按「請 Claude 轉成檢索式」，或直接輸入英文關鍵詞。') + rawBox(e));
+              return;
             }
           }
         } else if (hasCJK(question) && S.pubmed !== false) {
