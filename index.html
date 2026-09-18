@@ -99,6 +99,9 @@
   #composed{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12.5px;background:var(--soft);padding:10px 12px;border-radius:8px;margin:4px 0 0;color:var(--ink);min-height:40px}
   @media (max-width:640px){ .qtype .scope{margin-left:0} }
   .hint-line{margin:8px 0 0;font-size:12.5px;color:var(--muted)}
+  /* 說明行裡的連結是註腳，不是行動：跟著說明行一起放低，別搶按鈕的注意力 */
+  .hint-line a{color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+  .hint-line a:hover{color:var(--brass-deep)}
 
   /* buttons */
   .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--jade);border-radius:6px;background:#fff;color:var(--jade-deep);text-decoration:none;font-size:13.5px;line-height:1.3;cursor:pointer;white-space:nowrap}
@@ -355,7 +358,7 @@
       <details class="promptbox-wrap" id="handoff-sum-box" hidden><summary>沒有複製成功？在這裡全選複製整理指令</summary><textarea class="promptbox" id="handoff-sum-text" readonly spellcheck="false"></textarea></details>
     </div>
     <div class="sum" id="ai-sum" hidden></div>
-    <p class="disc" id="ai-disc" hidden>這段整理只轉述上列摘要的內容，每句都標注來源編號，點編號會直接開啟該篇的圖書館全文；它不是醫療建議，請務必閱讀原文核實。</p>
+    <p class="disc" id="ai-disc" hidden>這段整理只轉述上列摘要的內容，每句都標注來源編號，點編號會開啟該篇的圖書館全文（訂閱範圍外的會跳到該篇，讓你改走其他管道）；它不是醫療建議，請務必閱讀原文核實。</p>
     <p class="disc" id="ai-escalate" hidden>覺得這份整理不夠深入？<button type="button" class="linkish" id="escalate">把同一份文獻交給你自己的 Claude 重做一份</button>（免費帳號即可，不佔圖書館額度）。</p>
   </section>
 
@@ -507,7 +510,7 @@ const CONFIG = {
                                   //   都用上面的 ai.summaryChars 除以篇數，10 篇時每篇 2,400 字元。）
   },
   showConclusion: true,          // 在每筆結果顯示摘要中的結論句（不需要 AI）
-  version: '4.8（2026-09）'
+  version: '4.9（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -540,6 +543,10 @@ function loginUrlFor(target){ return proxyBase() + '/login?url=' + encodeURIComp
 // 這些出版社的文章本來就免費，不必經過圖書館（經過反而可能因未設定而 404）
 const OA_PREFIXES = ['10.1186/', '10.1371/', '10.3389/', '10.3390/', '10.7717/', '10.1101/', '10.7759/', '10.2196/', '10.12688/', '10.1155/', '10.1038/s41598', '10.1136/bmjopen'];
 function isOA(rec){ return !!rec.pmc || (rec.doi && OA_PREFIXES.some(p => rec.doi.toLowerCase().startsWith(p))); }
+// 期刊在館藏清單裡，但這一篇的出版年不在訂閱年份範圍內 → 圖書館拿不到全文。
+// 這種情形不放「圖書館全文」按鈕：點了必定是付費牆或「未訂閱」，還會白白登記一次點閱。
+// 第二個參數是已經算好的 holding（recHTML 用），省一次比對。
+function outOfRange(rec, h){ const x = (h === undefined) ? holdingFor(rec) : h; return !!(x && x.status === 'partial' && !isOA(rec)); }
 // 館藏清單裡「所屬資料庫」是集成平台（不是出版社網站）時，單篇文章的出版社網址通常沒有權限，
 // 要改走 ERM 的期刊跳轉（開啟該平台上的本刊），再在平台內找該篇。
 const AGG_RE = /ovid|proquest|ebsco|cinahl|airiti|華藝|clinicalkey|medline|cochrane|dynamed|uptodate|hyread|kono/i;
@@ -1063,6 +1070,7 @@ function recHTML(rec){
   if (rec.doi) tags.push('<a class="tag id" target="_blank" rel="noopener" title="出版社原站（不經圖書館）" href="https://doi.org/' + esc(rec.doi) + '">DOI ' + esc(rec.doi) + '</a>');
   const hasAbs = rec.abstractParts && rec.abstractParts.length;
   const concl = conclusionOf(rec);
+  const oor = outOfRange(rec, h);          // 期刊有訂，但這一篇的年份不在訂閱範圍內
   const primaryLabel = rec.pmc ? '全文（PMC 免費）' : isOA(rec) && CONFIG.library.fulltextMode !== 'direct' ? '全文（免費）'
     : h && h.status === 'no' ? (route.kind === 'clinicalkey' ? '試試 ClinicalKey' : route.kind === 'ovid' ? '試試 Ovid' : '試試圖書館')
     : route.kind === 'erm' ? '圖書館全文（' + esc(platformName(route.entry)) + '）'
@@ -1076,22 +1084,30 @@ function recHTML(rec){
     : route.kind === 'ovid' ? '經圖書館代理直接開啟 Ovid 上的這一篇（以 DOI 定位）'
     : route.kind === 'clinicalkey' || viaCK ? '經圖書館代理直接開啟 ClinicalKey 上的這一篇（Elsevier 期刊本院訂在 ClinicalKey）'
     : '經圖書館代理開啟出版社網頁' + (needsResolve(rec) ? '（會先解析 DOI）' : '') + '。本院多數期刊訂在 ClinicalKey、Ovid、ProQuest、EBSCO 等平台，出版社網站不一定有訂閱；沒有全文時請改試「EBSCO 全文」';
-  const acts = [
-    '<a class="btn lib' + (h && h.status !== 'yes' && !isOA(rec) ? ' soft' : '') + '" data-route="primary" target="_blank" rel="noopener" href="' + esc(fulltextHref(rec)) + '" title="' + esc(primaryTitle) + '">' + primaryLabel + '</a>',
-    (route.kind === 'erm' || route.kind === 'clinicalkey' || route.kind === 'ebsco' || route.kind === 'ovid' || viaCK) && rec.doi && !rec.pmc ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改走出版社網站（經圖書館代理；若圖書館只訂集成平台，可能顯示未訂閱）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '',
-    (route.kind === 'article' || route.kind === 'ovid') && route.entry && ermJournalLink(route.entry) && !isOA(rec) ? '<a class="btn lib soft" target="_blank" rel="noopener" title="由 ERM 開啟本刊所在平台（Ovid 的 ERM 連結不經代理，院外可能會要求登入）" href="' + esc(ermJournalLink(route.entry)) + '">從 ERM 開本刊</a>' : '',
-    '<a class="btn" target="_blank" rel="noopener" href="' + esc(pm) + '">PubMed</a>',
-    rec.pmc && rec.doi ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改開出版社網站（免費文章，直接開啟、不經代理）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '',
-    !isOA(rec) && rec.pmid && route.kind !== 'ebsco' ? '<a class="btn lib soft" target="_blank" rel="noopener" title="本院訂有 EBSCO MEDLINE 全文：若本刊在其收錄範圍，可直接開這一篇（以 PMID 定位）" href="' + esc(wrapSync(ebscoArticleUrl(rec))) + '">EBSCO 全文</a>' : '',
-    rec.oa && !rec.pmc ? '<a class="btn oa" target="_blank" rel="noopener" title="OpenAlex／Unpaywall 找到的合法免費全文" href="' + esc(rec.oa) + '">免費版本</a>' : '',
-    hasAbs ? '<button type="button" class="btn ghost" data-act="abs" aria-expanded="false">摘要</button>' : '',
-    '<button type="button" class="btn ghost" data-act="cite">複製引用</button>',
-    CONFIG.ill && CONFIG.ill.url && !isOA(rec) && !rec.oa && !(h && h.status === 'yes') ? '<a class="btn ghost" target="_blank" rel="noopener" title="圖書館沒訂閱時，可向其他圖書館申請文獻（先按「複製引用」帶著書目資料去填）" href="' + esc(CONFIG.ill.url) + '">' + esc(CONFIG.ill.label) + '</a>' : ''
-  ].filter(Boolean).join('');
+  const bPrimary  = '<a class="btn lib' + (h && h.status !== 'yes' && !isOA(rec) ? ' soft' : '') + '" data-route="primary" target="_blank" rel="noopener" href="' + esc(fulltextHref(rec)) + '" title="' + esc(primaryTitle) + '">' + primaryLabel + '</a>';
+  const bPublisher = (route.kind === 'erm' || route.kind === 'clinicalkey' || route.kind === 'ebsco' || route.kind === 'ovid' || viaCK) && rec.doi && !rec.pmc ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改走出版社網站（經圖書館代理；若圖書館只訂集成平台，可能顯示未訂閱）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '';
+  const bErmJournal = (route.kind === 'article' || route.kind === 'ovid') && route.entry && ermJournalLink(route.entry) && !isOA(rec) ? '<a class="btn lib soft" target="_blank" rel="noopener" title="由 ERM 開啟本刊所在平台（Ovid 的 ERM 連結不經代理，院外可能會要求登入）" href="' + esc(ermJournalLink(route.entry)) + '">從 ERM 開本刊</a>' : '';
+  const bPubMed   = '<a class="btn" target="_blank" rel="noopener" href="' + esc(pm) + '">PubMed</a>';
+  const bPmcPub   = rec.pmc && rec.doi ? '<a class="btn lib soft" data-route="article" target="_blank" rel="noopener" title="改開出版社網站（免費文章，直接開啟、不經代理）" href="' + esc(fulltextHref(rec, true)) + '">出版社網站</a>' : '';
+  const bEbsco    = !isOA(rec) && rec.pmid && route.kind !== 'ebsco' ? '<a class="btn lib soft" target="_blank" rel="noopener" title="' + (oor ? '這是另一份訂閱（EBSCO MEDLINE），收錄範圍和上面那個平台不同，值得一試（以 PMID 定位）' : '本院訂有 EBSCO MEDLINE 全文：若本刊在其收錄範圍，可直接開這一篇（以 PMID 定位）') + '" href="' + esc(wrapSync(ebscoArticleUrl(rec))) + '">EBSCO 全文</a>' : '';
+  const bOA       = rec.oa && !rec.pmc ? '<a class="btn oa" target="_blank" rel="noopener" title="OpenAlex／Unpaywall 找到的合法免費全文" href="' + esc(rec.oa) + '">免費版本</a>' : '';
+  const bAbs      = hasAbs ? '<button type="button" class="btn ghost" data-act="abs" aria-expanded="false">摘要</button>' : '';
+  const bCite     = '<button type="button" class="btn ghost" data-act="cite">複製引用</button>';
+  const bIll      = CONFIG.ill && CONFIG.ill.url && !isOA(rec) && !rec.oa && !(h && h.status === 'yes')
+    ? '<a class="btn ' + (oor ? 'lib soft' : 'ghost') + '" target="_blank" rel="noopener" title="' + (oor ? '圖書館的訂閱年份不含這一篇，向他館申請是最實際的路（先按「複製引用」帶著書目資料去填）' : '圖書館沒訂閱時，可向其他圖書館申請文獻（先按「複製引用」帶著書目資料去填）') + '" href="' + esc(CONFIG.ill.url) + '">' + esc(CONFIG.ill.label) + '</a>' : '';
+  // 訂閱範圍外：不放「圖書館全文」與「出版社網站」（兩條都會撞到付費牆），
+  // 改把真的還有機會的管道排到最前面，讓使用者第一眼看到的就是可行的下一步。
+  const acts = (oor ? [bEbsco, bOA, bIll, bPubMed, bAbs, bCite]
+                    : [bPrimary, bPublisher, bErmJournal, bPubMed, bPmcPub, bEbsco, bOA, bAbs, bCite, bIll]
+  ).filter(Boolean).join('');
   const locator = (rec.year || '') + (rec.volume ? ';' + rec.volume + (rec.issue ? '(' + rec.issue + ')' : '') : '') + (rec.pages ? ':' + rec.pages : '');
   const pinfo = platformInfo(route.entry) || (rec.doi && /^10\.1002\/14651858/i.test(rec.doi) ? CONFIG.platforms.find(p => /cochrane/i.test(p.name)) : null);
   const hintBits = [];
-  if (route.kind === 'erm' && !isOA(rec)) hintBits.push('本刊經 ' + esc(platformName(route.entry)) + ' 訂閱：開啟平台後請找 ' + esc(locator || rec.year) + (h.alts && h.alts.length ? '；也在 ' + h.alts.map(a => esc(platformName(a))).join('、') : ''));
+  if (route.kind === 'erm' && !isOA(rec) && !oor) hintBits.push('本刊經 ' + esc(platformName(route.entry)) + ' 訂閱：開啟平台後請找 ' + esc(locator || rec.year) + (h.alts && h.alts.length ? '；也在 ' + h.alts.map(a => esc(platformName(a))).join('、') : ''));
+  if (oor) hintBits.push('圖書館' + (platformName(route.entry) ? '的 ' + esc(platformName(route.entry)) + ' ' : '') + '訂閱範圍是 ' + esc(h.range) + '，這一篇是 ' + esc(rec.year) + ' 年的，不在範圍內，所以沒有放「圖書館全文」。'
+    + (bEbsco ? '可先試「EBSCO 全文」（另一份訂閱，收錄範圍不同）；' : '')
+    + '拿不到就按「' + esc(CONFIG.ill.label) + '」向他館申請。'
+    + '<a class="lib" target="_blank" rel="noopener" title="館藏清單偶爾會過期或比對錯誤；若你確定圖書館有，這裡仍可照原路開啟" href="' + esc(fulltextHref(rec)) + '">（清單有誤？仍要開 ' + esc(platformName(route.entry) || '圖書館平台') + '）</a>');
   if (pinfo && pinfo.tip && !isOA(rec)) hintBits.push(esc(pinfo.tip) + (ermDetailLink(pinfo) ? '<a target="_blank" rel="noopener" href="' + esc(ermDetailLink(pinfo)) + '">ERM 資料庫簡介</a>（需登入 ERM）' : '圖書館 ERM 的資料庫簡介'));
   const hintLine = hintBits.length ? '<p class="hint-line">' + hintBits.join('<br>') + '</p>' : '';
   const abs = hasAbs ? '<div class="abs">' + rec.abstractParts.map(p => (p.label ? '<b>' + esc(p.label) + '：</b>' : '') + esc(p.text)).join('<br>') +
@@ -1170,9 +1186,12 @@ function summaryPrompt(recs){
   const handoffPer = Math.max(700, Math.min(8000, Math.round((+CONFIG.ai.summaryChars || 24000) / Math.max(1, N))));
   const item = r => {
     const pt = (r.pubtypes || []).filter(t => PT_LABEL[t]).slice(0, 2).map(t => PT_LABEL[t]).join('、');
-    const link = r.pmc ? 'https://pmc.ncbi.nlm.nih.gov/articles/' + r.pmc + '/' : fulltextHref(r);   // 與頁面上「圖書館全文」主按鈕相同的路線
+    // 與頁面上「圖書館全文」主按鈕相同的路線；訂閱範圍外的不給圖書館連結（點了也拿不到），改給 PubMed
+    const oor = outOfRange(r);
+    const link = r.pmc ? 'https://pmc.ncbi.nlm.nih.gov/articles/' + r.pmc + '/'
+      : oor ? 'https://pubmed.ncbi.nlm.nih.gov/' + r.pmid + '/' : fulltextHref(r);
     return '[' + r.n + '] ' + cleanText(r.title, 250) + '（' + [r.journal, r.year, pt].filter(Boolean).join('；') + '；PMID ' + r.pmid + '）\n' +
-      '全文：' + link + '\n' +
+      (oor ? 'PubMed（這一篇不在圖書館的訂閱年份內，需館際合作）：' : '全文：') + link + '\n' +
       '摘要：' + cleanText(absText(r), handoffPer);
   };
   return '你是實證醫學圖書館員。下面是我用台南市立醫院圖書館「找文獻」查 PubMed 得到、依相關性排序的前 ' + N + ' 篇文獻（含摘要與全文連結）。\n' +
