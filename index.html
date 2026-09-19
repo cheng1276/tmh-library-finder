@@ -41,9 +41,15 @@
   .pill i{width:8px;height:8px;border-radius:50%;background:#B9C4C0;display:inline-block;flex:none}
   .pill.ok i{background:#7FE0B0}
   .pill.off i{background:#F0B37E}
-  a.pill{color:inherit;text-decoration:none;cursor:pointer}
-  a.pill:hover{background:rgba(255,255,255,.2)}
+  .pill.wait i{background:#8FC5F0}
   .actbar strong.st{display:block;margin-bottom:4px}
+  /* 按了「啟用」之後的確認條：masthead 版在深綠底，結果區版在米色提示條裡 */
+  .libq{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:8px 12px;font-size:13.5px;color:#fff}
+  .libq button{font:inherit;font-size:13px;padding:5px 12px;border-radius:6px;border:1px solid #fff;background:#fff;color:var(--jade-deep);cursor:pointer}
+  .libq button.no{background:transparent;color:#fff}
+  .actbar .libq{flex-basis:100%;background:#fff;border-color:var(--brass);color:#5B3F08}
+  .actbar .libq button{border-color:var(--brass);background:var(--brass);color:#fff}
+  .actbar .libq button.no{background:transparent;color:var(--brass-deep)}
   .login-link{color:#fff;font-size:13.5px;text-underline-offset:3px}
   .activate{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--jade-deep);border-radius:6px;padding:8px 14px;font-size:14px;font-weight:500;text-decoration:none}
   .activate:hover{background:var(--jade-tint)}
@@ -254,12 +260,14 @@
       <div class="pills" aria-live="polite">
         <span class="pill" id="pill-pubmed"><i></i>PubMed 連線檢查中</span>
         <span class="pill" id="pill-ai"><i></i>AI 助理檢查中</span>
-        <a class="pill" id="pill-lib" href="#" target="_blank" rel="noopener" hidden><i></i>圖書館連線</a>
+        <span class="pill" id="pill-lib" hidden><i></i>圖書館連線</span>
         <span class="pill" id="pill-holdings"><i></i>館藏清單載入中</span>
       </div>
       <a class="activate" id="activate-link" href="#" target="_blank" rel="noopener">啟用圖書館連線</a>
       <p class="small">第一次使用、換瀏覽器，或閒置超過 <span class="sess-h">2</span> 小時後按一次；會先登入遠端系統。<a class="login-link" id="login-link" href="https://www.scmhem.org.tw/scmherm/index.jsp" target="_blank" rel="noopener">遠端系統首頁</a>　<button type="button" class="linkish" id="copy-activate" title="若按鈕沒有反應，或想在別的瀏覽器登入，可複製網址自行開啟">複製網址</button></p>
       <p class="small" id="activate-note" hidden>若開啟後顯示「找不到伺服器」，按重新整理通常就會成功（院內網域的名稱解析偶爾會逾時）。</p>
+      <div class="libq" id="libq-1" hidden role="group" aria-label="確認登入結果"><span>剛才在遠端系統登入成功了嗎？（成功時它會接著開啟 NEJM）</span><button type="button" class="yes">是，已登入</button><button type="button" class="no">否</button></div>
+      <p class="small" id="lib-tip" hidden></p>
     </div>
   </div>
 </header>
@@ -370,10 +378,11 @@
 
   <div class="actbar" id="actbar" hidden>
     <a class="activate" id="activate-link-2" href="#" target="_blank" rel="noopener">啟用圖書館連線</a>
+    <div class="libq" id="libq-2" hidden role="group" aria-label="確認登入結果"><span>剛才在遠端系統登入成功了嗎？（成功時它會接著開啟 NEJM）</span><button type="button" class="yes">是，已登入</button><button type="button" class="no">否</button></div>
     <span><strong class="st" id="actbar-status" hidden></strong>點「圖書館全文」若出現 <strong>HyProxy Login</strong> 畫面，表示這個瀏覽器還沒啟用（或閒置超過 <span class="sess-h">2</span> 小時已逾時）：請關閉那一頁，按左邊按鈕完成一次登入（它會開啟 NEJM），再回來點連結。不要在 HyProxy Login 輸入帳密。</span>
   </div>
   <ol id="results"></ol>
-  <p class="firstnote" id="firstnote" hidden>「圖書館全文」會依館藏清單決定路線（ClinicalKey、Ovid、EBSCO 直達單篇，或解析 DOI 後經圖書館代理開啟出版社網頁）。代理的登入狀態是跟著瀏覽器走的：每台電腦、每個瀏覽器第一次使用時，按一次「啟用圖書館連線」（登入遠端系統，它會開啟 NEJM），之後連結就會直接通；閒置超過 <span class="sess-h">2</span> 小時登入狀態會失效，再按一次即可。上方「圖書館連線」燈號顯示這個瀏覽器最近一次經過圖書館連線的時間。「圖書館全文（出版社）」點進去若只有摘要，請改試「EBSCO 全文」或「免費版本」，再不行就用館際合作（NDDS）。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
+  <p class="firstnote" id="firstnote" hidden>「圖書館全文」會依館藏清單決定路線（ClinicalKey、Ovid、EBSCO 直達單篇，或解析 DOI 後經圖書館代理開啟出版社網頁）。代理的登入狀態是跟著瀏覽器走的：每台電腦、每個瀏覽器第一次使用時，按一次「啟用圖書館連線」（登入遠端系統，它會開啟 NEJM），之後連結就會直接通；閒置超過 <span class="sess-h">2</span> 小時登入狀態會失效，再按一次即可。上方「圖書館連線」燈號：按過啟用並回答「是，已登入」才會轉綠，之後從本頁開全文會延續它的時間；超過 <span class="sess-h">2</span> 小時轉為「可能已逾時」。「圖書館全文（出版社）」點進去若只有摘要，請改試「EBSCO 全文」或「免費版本」，再不行就用館際合作（NDDS）。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
   <div id="more-wrap" hidden><button type="button" class="btn wide" id="more">載入更多</button></div>
 
   <section class="about" aria-label="說明與設定">
@@ -518,7 +527,7 @@ const CONFIG = {
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.4（2026-09）'
+  version: '5.5（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1005,13 +1014,22 @@ function patchOA(rec){
    所以燈號記的是「這台瀏覽器最近一次經過圖書館連線的時間」：按「啟用」、從本頁開任何走圖書館的全文都算。
    超過 CONFIG.library.sessionHours 沒經過代理就轉琥珀提醒；燈號本身就是「啟用」的連結。 */
 const LIB_KEY = 'tmh.finder.lib';
-function libLast(){ try { const o = JSON.parse(localStorage.getItem(LIB_KEY) || 'null'); return o && +o.t > 0 ? +o.t : 0; } catch (_) { return 0; } }
-function noteLibVisit(){ try { localStorage.setItem(LIB_KEY, JSON.stringify({ t: Date.now() })); } catch (_) {} paintLibPill(); }
+// 存的是 { st: 'pending' | 'ok', t }：pending＝按了啟用還沒回答；ok＝使用者確認登入成功（t 取按啟用的時刻）
+function libRead(){ try { const o = JSON.parse(localStorage.getItem(LIB_KEY) || 'null'); if (o && +o.t > 0 && (o.st === 'ok' || o.st === 'pending')) return { st: o.st, t: +o.t }; } catch (_) {} return { st: 'none', t: 0 }; }
+function libWrite(st, t){ try { if (st === 'none') localStorage.removeItem(LIB_KEY); else localStorage.setItem(LIB_KEY, JSON.stringify({ st, t: t || Date.now() })); } catch (_) {} paintLibPill(); }
+function startLibPending(){ S.libNo = false; const tip = $('#lib-tip'); if (tip) tip.hidden = true; libWrite('pending'); }   // 按了啟用：等他回來回答
+function answerLib(yes){
+  const o = libRead();
+  if (yes) libWrite('ok', o.t || Date.now());
+  else { S.libNo = true; libWrite('none'); const tip = $('#lib-tip'); if (tip) { tip.textContent = '沒有登入成功的話，請再按一次「啟用圖書館連線」，在遠端系統輸入帳號密碼（帳密問題請洽圖書館）。'; tip.hidden = false; } }
+}
+function noteLibVisit(){ if (libRead().st === 'ok') libWrite('ok'); }   // 只有「已確認登入」才用開全文的點擊延續；待確認／未啟用不會因此變綠
 function viaLibraryHost(u){ try { const h = new URL(String(u), location.href).hostname; return h === CONFIG.library.proxyHost || h.endsWith('.' + CONFIG.library.proxyHost); } catch (_) { return false; } }
 function libState(){
-  const t = libLast(); if (!t) return { state: 'none', t: 0 };
-  const h = +CONFIG.library.sessionHours || 0;
-  return { state: (h && Date.now() - t > h * 3600000) ? 'idle' : 'ok', t };
+  const o = libRead(); if (o.st === 'none') return { state: 'none', t: 0 };
+  const h = +CONFIG.library.sessionHours || 0; const old = !!(h && Date.now() - o.t > h * 3600000);
+  if (o.st === 'pending') return old ? { state: 'none', t: 0 } : { state: 'pending', t: o.t };   // 太久沒回答：視同沒有
+  return { state: old ? 'idle' : 'ok', t: o.t };
 }
 function fmtWhen(t){
   const d = new Date(t), now = new Date();
@@ -1022,23 +1040,28 @@ function paintLibPill(){
   const p = $('#pill-lib'); if (!p) return;
   const show = CONFIG.library.fulltextMode !== 'direct' && !!CONFIG.library.activateUrl;
   p.hidden = !show;
-  const ab = $('#actbar-status');
-  if (!show) { if (ab) { ab.hidden = true; ab.textContent = ''; } return; }
+  const ab = $('#actbar-status'); const qs = document.querySelectorAll('.libq');
+  if (!show) { if (ab) { ab.hidden = true; ab.textContent = ''; } qs.forEach(q => q.hidden = true); return; }
   const { state, t } = libState(); const h = +CONFIG.library.sessionHours || 0;
-  p.href = CONFIG.library.activateUrl;
+  qs.forEach(q => q.hidden = state !== 'pending');
   if (state === 'ok') {
     p.className = 'pill ok'; p.innerHTML = '<i></i>圖書館連線 已啟用 · ' + fmtWhen(t);
-    p.title = '這台瀏覽器最近一次經過圖書館連線是 ' + fmtWhen(t) + (h ? '；閒置超過 ' + h + ' 小時登入狀態會失效' : '') + '。按「啟用」或從本頁開啟任何圖書館全文都會更新這個時間。若全文仍出現 HyProxy Login，按這裡重新啟用。';
+    p.title = '你在 ' + fmtWhen(t) + ' 確認已登入遠端系統' + (h ? '；閒置超過 ' + h + ' 小時登入狀態會失效' : '') + '。從本頁開啟圖書館全文會延續這個時間。若全文仍出現 HyProxy Login，請再按一次「啟用圖書館連線」。';
+  } else if (state === 'pending') {
+    p.className = 'pill wait'; p.innerHTML = '<i></i>圖書館連線 待確認 · ' + fmtWhen(t);
+    p.title = '你在 ' + fmtWhen(t) + ' 按了「啟用圖書館連線」，但還沒告訴本頁登入成功了沒——請回答下方的問題。';
   } else if (state === 'idle') {
     p.className = 'pill off'; p.innerHTML = '<i></i>圖書館連線 可能已逾時';
-    p.title = '最近一次經過圖書館連線是 ' + fmtWhen(t) + '，已超過 ' + h + ' 小時，開全文時可能會被要求登入。按這裡重新啟用（會先登入遠端系統）。';
+    p.title = '上次確認登入是 ' + fmtWhen(t) + '，已超過 ' + h + ' 小時，開全文時可能會被要求登入。請再按一次「啟用圖書館連線」。';
   } else {
     p.className = 'pill'; p.innerHTML = '<i></i>圖書館連線 未啟用';
-    p.title = '這台瀏覽器還沒按過「啟用圖書館連線」。按這裡啟用（會先登入遠端系統並開啟 NEJM），之後開全文就不必再登入。';
+    p.title = '這台瀏覽器還沒確認過登入遠端系統。請按「啟用圖書館連線」完成登入（它會接著開啟 NEJM），回來後回答「是，已登入」。';
   }
   if (ab) {
-    ab.textContent = state === 'ok' ? '這個瀏覽器 ' + fmtWhen(t) + ' 才經過圖書館連線' + (h ? '，' + h + ' 小時內開全文不必重新登入。' : '。')
-                   : state === 'idle' ? '這個瀏覽器最近一次經過圖書館連線是 ' + fmtWhen(t) + '，已超過 ' + h + ' 小時，開全文可能要重新登入——請先按左邊按鈕重新啟用。'
+    ab.textContent = state === 'ok' ? '這個瀏覽器 ' + fmtWhen(t) + ' 確認已登入圖書館連線' + (h ? '，' + h + ' 小時內開全文不必重新登入。' : '。')
+                   : state === 'pending' ? '你 ' + fmtWhen(t) + ' 按了啟用——登入成功了嗎？請回答上面的問題。'
+                   : state === 'idle' ? '上次確認登入是 ' + fmtWhen(t) + '，已超過 ' + h + ' 小時，開全文可能要重新登入——請先按左邊按鈕重新啟用。'
+                   : S.libNo ? '沒有登入成功：請再按一次左邊的「啟用圖書館連線」，在遠端系統輸入帳號密碼。'
                    : '';
     ab.hidden = !ab.textContent;
   }
@@ -1589,7 +1612,8 @@ $('#pill-ai').addEventListener('click', () => { if (S.needCode && !getCode() && 
 $('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (relayBase() ? '　AI：圖書館中繼站' : '　AI：未啟用（未設定中繼站）');
 // 中繼站在本站時，順手把狀態頁連結指對
 (() => { const a = document.querySelector('a[href="/api/ai"]'); if (a && relayBase() && relayBase() !== '/api/ai') a.href = relayBase(); })();
-['#activate-link', '#activate-link-2', '#pill-lib'].forEach(sel => { const a = $(sel); if (a) a.addEventListener('click', () => { const n = $('#activate-note'); if (n) n.hidden = false; noteLibVisit(); }); });
+['#activate-link', '#activate-link-2'].forEach(sel => { const a = $(sel); if (a) a.addEventListener('click', () => { const n = $('#activate-note'); if (n) n.hidden = false; startLibPending(); }); });
+document.addEventListener('click', e => { const b = e.target.closest('.libq button'); if (b) answerLib(b.classList.contains('yes')); });
 setInterval(paintLibPill, 60000);                                   // 頁面開著不動，2 小時一到燈號自己轉色
 document.addEventListener('visibilitychange', () => { if (!document.hidden) paintLibPill(); });
 document.querySelectorAll('.sess-h').forEach(el => el.textContent = String(+CONFIG.library.sessionHours || 0));
