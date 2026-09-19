@@ -41,6 +41,9 @@
   .pill i{width:8px;height:8px;border-radius:50%;background:#B9C4C0;display:inline-block;flex:none}
   .pill.ok i{background:#7FE0B0}
   .pill.off i{background:#F0B37E}
+  a.pill{color:inherit;text-decoration:none;cursor:pointer}
+  a.pill:hover{background:rgba(255,255,255,.2)}
+  .actbar strong.st{display:block;margin-bottom:4px}
   .login-link{color:#fff;font-size:13.5px;text-underline-offset:3px}
   .activate{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--jade-deep);border-radius:6px;padding:8px 14px;font-size:14px;font-weight:500;text-decoration:none}
   .activate:hover{background:var(--jade-tint)}
@@ -251,10 +254,11 @@
       <div class="pills" aria-live="polite">
         <span class="pill" id="pill-pubmed"><i></i>PubMed 連線檢查中</span>
         <span class="pill" id="pill-ai"><i></i>AI 助理檢查中</span>
+        <a class="pill" id="pill-lib" href="#" target="_blank" rel="noopener" hidden><i></i>圖書館連線</a>
         <span class="pill" id="pill-holdings"><i></i>館藏清單載入中</span>
       </div>
       <a class="activate" id="activate-link" href="#" target="_blank" rel="noopener">啟用圖書館連線</a>
-      <p class="small">第一次使用、換電腦或換瀏覽器時按一次；會先登入遠端系統。<a class="login-link" id="login-link" href="https://www.scmhem.org.tw/scmherm/index.jsp" target="_blank" rel="noopener">遠端系統首頁</a>　<button type="button" class="linkish" id="copy-activate" title="若按鈕沒有反應，或想在別的瀏覽器登入，可複製網址自行開啟">複製網址</button></p>
+      <p class="small">第一次使用、換瀏覽器，或閒置超過 <span class="sess-h">2</span> 小時後按一次；會先登入遠端系統。<a class="login-link" id="login-link" href="https://www.scmhem.org.tw/scmherm/index.jsp" target="_blank" rel="noopener">遠端系統首頁</a>　<button type="button" class="linkish" id="copy-activate" title="若按鈕沒有反應，或想在別的瀏覽器登入，可複製網址自行開啟">複製網址</button></p>
       <p class="small" id="activate-note" hidden>若開啟後顯示「找不到伺服器」，按重新整理通常就會成功（院內網域的名稱解析偶爾會逾時）。</p>
     </div>
   </div>
@@ -366,10 +370,10 @@
 
   <div class="actbar" id="actbar" hidden>
     <a class="activate" id="activate-link-2" href="#" target="_blank" rel="noopener">啟用圖書館連線</a>
-    <span>點「圖書館全文」若出現 <strong>HyProxy Login</strong> 畫面，表示這個瀏覽器還沒啟用：請關閉那一頁，按左邊按鈕完成一次登入（它會開啟 NEJM），再回來點連結。不要在 HyProxy Login 輸入帳密。</span>
+    <span><strong class="st" id="actbar-status" hidden></strong>點「圖書館全文」若出現 <strong>HyProxy Login</strong> 畫面，表示這個瀏覽器還沒啟用（或閒置超過 <span class="sess-h">2</span> 小時已逾時）：請關閉那一頁，按左邊按鈕完成一次登入（它會開啟 NEJM），再回來點連結。不要在 HyProxy Login 輸入帳密。</span>
   </div>
   <ol id="results"></ol>
-  <p class="firstnote" id="firstnote" hidden>「圖書館全文」會依館藏清單決定路線（ClinicalKey、Ovid、EBSCO 直達單篇，或解析 DOI 後經圖書館代理開啟出版社網頁）。代理的登入狀態是跟著瀏覽器走的：每台電腦、每個瀏覽器第一次使用時，按一次「啟用圖書館連線」（登入遠端系統，它會開啟 NEJM），之後連結就會直接通。「圖書館全文（出版社）」點進去若只有摘要，請改試「EBSCO 全文」或「免費版本」，再不行就用館際合作（NDDS）。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
+  <p class="firstnote" id="firstnote" hidden>「圖書館全文」會依館藏清單決定路線（ClinicalKey、Ovid、EBSCO 直達單篇，或解析 DOI 後經圖書館代理開啟出版社網頁）。代理的登入狀態是跟著瀏覽器走的：每台電腦、每個瀏覽器第一次使用時，按一次「啟用圖書館連線」（登入遠端系統，它會開啟 NEJM），之後連結就會直接通；閒置超過 <span class="sess-h">2</span> 小時登入狀態會失效，再按一次即可。上方「圖書館連線」燈號顯示這個瀏覽器最近一次經過圖書館連線的時間。「圖書館全文（出版社）」點進去若只有摘要，請改試「EBSCO 全文」或「免費版本」，再不行就用館際合作（NDDS）。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
   <div id="more-wrap" hidden><button type="button" class="btn wide" id="more">載入更多</button></div>
 
   <section class="about" aria-label="說明與設定">
@@ -459,6 +463,9 @@ const CONFIG = {
     ermDetailUrl: 'https://www.scmhem.org.tw/scmherm/detail_source.jsp?esource_classify=databases&id=',
     // ERM 的資料庫跳轉 API（後面接 dbid）：用於在 ERM 登記「資料庫」層級的點閱
     ermDbUrl: 'https://www.scmhem.org.tw/scmherm/sendurl_api_v3.jsp?dbid=',
+    // HyProxy 工作階段的閒置逾時（小時）。實測：代理發的 HYSID cookie 在發出後 2 小時到期、每經過代理一次就更新。
+    // 「圖書館連線」燈號用它判斷：最近一次經過代理在這個時間內＝綠燈，超過＝琥珀「可能已逾時」。填 0 ＝不判斷逾時，只顯示時間。
+    sessionHours: 2,
     fulltextMode: 'login-url' // 'login-url'：https://www.scmhem.org.tw:3001/login?url=出版社網址（代理標準入口，會自行處理登入與轉址）
                               // 'publisher'：直接改寫成 出版社主機-www.scmhem.org.tw:3001/…（需已在同一瀏覽器建立代理登入狀態）
                               // 'direct'   ：不經圖書館，直接開出版社（院內 IP 認證時可用）
@@ -511,7 +518,7 @@ const CONFIG = {
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.3（2026-09）'
+  version: '5.4（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -993,6 +1000,50 @@ function patchOA(rec){
   if (tags && !tags.querySelector('.tag.free')) { const t = document.createElement('span'); t.className = 'tag free'; t.textContent = '有免費版本'; tags.insertBefore(t, tags.querySelector('.tag.id')); }
 }
 
+/* ---------- 圖書館連線燈號 ----------
+   頁面沒辦法真的知道代理有沒有登入（那是 www.scmhem.org.tw 的 cookie，跨站讀不到），
+   所以燈號記的是「這台瀏覽器最近一次經過圖書館連線的時間」：按「啟用」、從本頁開任何走圖書館的全文都算。
+   超過 CONFIG.library.sessionHours 沒經過代理就轉琥珀提醒；燈號本身就是「啟用」的連結。 */
+const LIB_KEY = 'tmh.finder.lib';
+function libLast(){ try { const o = JSON.parse(localStorage.getItem(LIB_KEY) || 'null'); return o && +o.t > 0 ? +o.t : 0; } catch (_) { return 0; } }
+function noteLibVisit(){ try { localStorage.setItem(LIB_KEY, JSON.stringify({ t: Date.now() })); } catch (_) {} paintLibPill(); }
+function viaLibraryHost(u){ try { const h = new URL(String(u), location.href).hostname; return h === CONFIG.library.proxyHost || h.endsWith('.' + CONFIG.library.proxyHost); } catch (_) { return false; } }
+function libState(){
+  const t = libLast(); if (!t) return { state: 'none', t: 0 };
+  const h = +CONFIG.library.sessionHours || 0;
+  return { state: (h && Date.now() - t > h * 3600000) ? 'idle' : 'ok', t };
+}
+function fmtWhen(t){
+  const d = new Date(t), now = new Date();
+  const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  return d.toDateString() === now.toDateString() ? hm : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hm;
+}
+function paintLibPill(){
+  const p = $('#pill-lib'); if (!p) return;
+  const show = CONFIG.library.fulltextMode !== 'direct' && !!CONFIG.library.activateUrl;
+  p.hidden = !show;
+  const ab = $('#actbar-status');
+  if (!show) { if (ab) { ab.hidden = true; ab.textContent = ''; } return; }
+  const { state, t } = libState(); const h = +CONFIG.library.sessionHours || 0;
+  p.href = CONFIG.library.activateUrl;
+  if (state === 'ok') {
+    p.className = 'pill ok'; p.innerHTML = '<i></i>圖書館連線 已啟用 · ' + fmtWhen(t);
+    p.title = '這台瀏覽器最近一次經過圖書館連線是 ' + fmtWhen(t) + (h ? '；閒置超過 ' + h + ' 小時登入狀態會失效' : '') + '。按「啟用」或從本頁開啟任何圖書館全文都會更新這個時間。若全文仍出現 HyProxy Login，按這裡重新啟用。';
+  } else if (state === 'idle') {
+    p.className = 'pill off'; p.innerHTML = '<i></i>圖書館連線 可能已逾時';
+    p.title = '最近一次經過圖書館連線是 ' + fmtWhen(t) + '，已超過 ' + h + ' 小時，開全文時可能會被要求登入。按這裡重新啟用（會先登入遠端系統）。';
+  } else {
+    p.className = 'pill'; p.innerHTML = '<i></i>圖書館連線 未啟用';
+    p.title = '這台瀏覽器還沒按過「啟用圖書館連線」。按這裡啟用（會先登入遠端系統並開啟 NEJM），之後開全文就不必再登入。';
+  }
+  if (ab) {
+    ab.textContent = state === 'ok' ? '這個瀏覽器 ' + fmtWhen(t) + ' 才經過圖書館連線' + (h ? '，' + h + ' 小時內開全文不必重新登入。' : '。')
+                   : state === 'idle' ? '這個瀏覽器最近一次經過圖書館連線是 ' + fmtWhen(t) + '，已超過 ' + h + ' 小時，開全文可能要重新登入——請先按左邊按鈕重新啟用。'
+                   : '';
+    ab.hidden = !ab.textContent;
+  }
+}
+
 /* ---------- 畫面 ---------- */
 function paintPills(){
   const p = $('#pill-pubmed'), a = $('#pill-ai');
@@ -1014,6 +1065,7 @@ function paintPills(){
   const ab = $('#about-ai'); if (ab) ab.hidden = !relayOn();
   const ar = $('#about-relay'); if (ar) ar.hidden = !relayOn();
   const sw = $('#set-ai-wrap'); if (sw) sw.hidden = !S.ai;
+  paintLibPill();
   const h = $('#pill-holdings');
   h.className = 'pill ' + (S.holdings ? 'ok' : 'off');
   h.innerHTML = '<i></i>' + (S.holdings ? '館藏清單 ' + S.holdings.count.toLocaleString() + ' 種期刊' : '館藏清單未載入');
@@ -1154,7 +1206,7 @@ function renderRecords(recs, start){
   // 先把前面幾篇的 DOI 解析好：點「圖書館全文」時就不必再等解析
   S.records.concat(recs).slice(0, Math.max(10, +CONFIG.ai.summaryN || 20)).forEach(r => { if (needsResolve(r) && !doiCache.has(r.doi)) resolveDOI(r.doi); });
 }
-function rerenderAll(){ [...$('#results').children].forEach((li, i) => { const r = S.records[i]; if (r) li.innerHTML = recHTML(r); }); }
+function rerenderAll(){ [...$('#results').children].forEach((li, i) => { const r = S.records[i]; if (r) li.innerHTML = recHTML(r); }); paintLibPill(); $('#actbar').hidden = $('#results').children.length === 0 || CONFIG.library.fulltextMode === 'direct' || !CONFIG.library.activateUrl; }
 function emptyState(es){
   const li = document.createElement('li'); li.className = 'empty';
   li.innerHTML = '沒有符合的文獻。可以試試：<ul><li>放寬年份或文獻類型的限制</li><li>減少關鍵詞，或改用同義詞、英文詞</li>' +
@@ -1537,7 +1589,10 @@ $('#pill-ai').addEventListener('click', () => { if (S.needCode && !getCode() && 
 $('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (relayBase() ? '　AI：圖書館中繼站' : '　AI：未啟用（未設定中繼站）');
 // 中繼站在本站時，順手把狀態頁連結指對
 (() => { const a = document.querySelector('a[href="/api/ai"]'); if (a && relayBase() && relayBase() !== '/api/ai') a.href = relayBase(); })();
-['#activate-link', '#activate-link-2'].forEach(sel => { const a = $(sel); if (a) a.addEventListener('click', () => { const n = $('#activate-note'); if (n) n.hidden = false; }); });
+['#activate-link', '#activate-link-2', '#pill-lib'].forEach(sel => { const a = $(sel); if (a) a.addEventListener('click', () => { const n = $('#activate-note'); if (n) n.hidden = false; noteLibVisit(); }); });
+setInterval(paintLibPill, 60000);                                   // 頁面開著不動，2 小時一到燈號自己轉色
+document.addEventListener('visibilitychange', () => { if (!document.hidden) paintLibPill(); });
+document.querySelectorAll('.sess-h').forEach(el => el.textContent = String(+CONFIG.library.sessionHours || 0));
 (() => {
   const b = $('#copy-activate'); if (!b) return;
   b.addEventListener('click', async () => { const ok = await copyText(CONFIG.library.activateUrl); const old = b.textContent; b.textContent = ok ? '已複製' : '無法複製'; setTimeout(() => b.textContent = old, 1600); });
@@ -1584,6 +1639,7 @@ $('#results').addEventListener('pointerover', e => {   // 滑鼠移到按鈕上�
 });
 $('#results').addEventListener('click', async e => {
   const lib = e.target.closest('a.lib');
+  if (lib) { const href = lib.getAttribute('href'); if (href && href !== '#' && viaLibraryHost(lib.href)) noteLibVisit(); }   // 直接開的連結：走圖書館就記一筆
   if (lib && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && !lib.dataset.ready) {
     const rec = S.records[+lib.closest('li.rec').dataset.i]; const fa = lib.dataset.route === 'article';
     const route = rec ? routeFor(rec, fa) : null;
@@ -1600,6 +1656,7 @@ $('#results').addEventListener('click', async e => {
       S.libClicks = (S.libClicks || 0) + 1;
       const pub = wantsPing && rec.doi && doiCache.has(rec.doi) ? await doiCache.get(rec.doi) : null;
       const ping = wantsPing ? ermClickUrl(rec, route, pub) : '';
+      if (ping || viaLibraryHost(url)) noteLibVisit();               // 經 ERM 登記或經代理開啟：都是經過圖書館連線
       if (w && !w.closed) {
         if (ping && ping !== url) { w.location.href = ping; setTimeout(() => { try { if (!w.closed) w.location.href = url; } catch (_) {} }, CONFIG.count.delay); }
         else w.location.href = url;
