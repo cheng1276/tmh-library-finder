@@ -24,6 +24,8 @@
  *   Bindings → Add → KV namespace，變數名稱 QUOTA（用量統計與快取）
  *   Variables → ALLOWED_ORIGINS（逗號分隔；不填＝只允許本站）、
  *               DAILY_NEURONS（預設 9200）、MODEL_TRANSLATE、MODEL_SUMMARY
+ *   Secrets   → ADMIN_CODE（管理者密碼）：設了之後，/api/ai 這個狀態頁要先輸入密碼才看得到
+ *               （登入記 7 天；換密碼即全部登出）。/ping 與網頁的 AI 功能不受影響。
  *   Secrets   → ACCESS_CODE（通關碼）：設了之後，網頁的 AI 功能會要使用者輸入一次
  *               （只存在他自己的瀏覽器，預設記 90 天）。PubMed 查詢、圖書館全文、
  *               /ping 與這個狀態頁都不受影響——它們不花額度。用途是把免費的 AI 額度
@@ -33,7 +35,7 @@
  */
 const API = '/api/ai';   // 中繼站的路徑；其餘網址一律當成網站檔案
 
-const VERSION = '3.4 (2026-09) / Pages';
+const VERSION = '3.5 (2026-09) / Pages';
 // 提示詞版本。改動任何提示詞就把它加一 —— 快取鍵含這個版本，舊的結果會自動作廢。
 // （之前改了提示詞卻沒換快取鍵，同一個問題一直回舊的短檢索式，改什麼都看不出效果。）
 const PROMPT_V = 'p7';
@@ -241,6 +243,47 @@ function safeEqual(a, b) {
   return diff === 0;
 }
 const codeOk = (request, env) => !codeOf(env) || safeEqual((request.headers.get('x-access-code') || '').trim(), codeOf(env));
+
+/* ---------------- 管理者密碼（狀態頁） ----------------
+   密碼對了就發一個簽章 cookie：exp.HMAC(密碼, exp)。伺服器不必記任何 session；換密碼＝全部失效。 */
+const ADMIN_TTL = 7 * 86400;                                    // 登入有效秒數（7 天）
+const adminCodeOf = env => String(env.ADMIN_CODE || '').trim();
+const adminOn = env => !!adminCodeOf(env);
+async function hmacHex(key, msg) {
+  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(msg));
+  return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+const adminToken = async (env, exp) => exp + '.' + await hmacHex('tmh-admin-v1|' + adminCodeOf(env), String(exp));
+function cookieOf(request, name) {
+  const m = (request.headers.get('Cookie') || '').match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+  return m ? m[1].trim() : '';
+}
+async function adminOk(request, env) {
+  const tok = cookieOf(request, 'tmh_admin'); const i = tok.indexOf('.');
+  if (i < 1) return false;
+  const exp = +tok.slice(0, i);
+  if (!exp || exp < Date.now() / 1000) return false;
+  return safeEqual(tok, await adminToken(env, exp));
+}
+const adminCookie = (value, maxAge) => 'tmh_admin=' + value + '; Path=' + API + '; Max-Age=' + maxAge + '; HttpOnly; Secure; SameSite=Strict';
+const HTML_HEADERS = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' };
+function loginPage(msg) {
+  return `<!doctype html><html lang="zh-Hant-TW"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>找文獻 AI 中繼站</title>
+<style>body{font-family:system-ui,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;max-width:460px;margin:60px auto;padding:0 20px;line-height:1.7;color:#16262E}
+h1{font-size:22px;margin:0 0 4px}p.sub{color:#5B6A70;margin:0 0 20px;font-size:14px}
+input{width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:10px 12px;border:1px solid #D5DFDA;border-radius:8px;margin:6px 0 12px}
+button{font:inherit;padding:9px 18px;border:1px solid #1B6B5A;background:#1B6B5A;color:#fff;border-radius:6px;cursor:pointer}
+.err{color:#A63D2F;font-size:14px;margin:0 0 10px}.foot{font-size:13px;color:#5B6A70;margin-top:22px}</style></head><body>
+<h1>找文獻 — AI 中繼站</h1><p class="sub">台南市立醫院圖書館　這一頁是中繼站的狀態頁，只給圖書館管理者看；要查文獻請回<a href="/">首頁</a>。</p>
+<form method="post" action="${API}/login">
+<label>管理者密碼<input type="password" name="password" autocomplete="current-password" autofocus required></label>
+${msg ? '<p class="err">' + msg + '</p>' : ''}
+<button type="submit">登入</button></form>
+<p class="foot">登入後在這台瀏覽器記 7 天。密碼是 Cloudflare Pages 專案 Secrets 裡的 ADMIN_CODE；忘記的話到主控台改一個新的並重新部署即可。</p>
+</body></html>`;
+}
 
 function cors(request, env, selfOrigin) {
   const origin = request.headers.get('Origin') || '';
@@ -632,6 +675,8 @@ function statusPage(env, sp, stats) {
   const useLine = r => nf(r.o) + ' 次開啟　' + nf(r.t) + ' 次轉檢索式　' + nf(r.s) + ' 次重點整理'
     + (r.c ? '（其中 ' + nf(r.c) + ' 次用快取回答，沒花額度）' : '');
   const rows = [
+    ['管理者密碼（ADMIN_CODE）', adminOn(env) ? '✅ 已設定——這一頁需要密碼，登入在這台瀏覽器記 7 天；換密碼即全部登出。<a href="' + API + '/logout">登出</a>'
+                                        : '⚠️ 未設定——任何知道網址的人都看得到這一頁（只有次數，沒有身分）。建議到 Settings → Variables and Secrets 加一個 ADMIN_CODE（型別選 Secret），再重新部署'],
     ['版本', VERSION + '　提示詞 ' + PROMPT_V],
     ['使用的 AI', cl ? '🟣 Claude（' + claudeModel(env) + '）——因為 Variables 裡設了 ANTHROPIC_API_KEY。這條路會向 Anthropic 計費，上限見下一列；Claude 叫不動時自動退回 Workers AI'
                      : '🟢 Cloudflare Workers AI（免費額度）——要改用 Claude，在 Variables 加一個 ANTHROPIC_API_KEY 即可'],
@@ -710,6 +755,21 @@ async function api(request, env, url) {
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: c.headers });
 
+    // 狀態頁的管理者登入／登出（同站表單，不經 CORS）
+    if (url.pathname === API + '/logout') return new Response(null, { status: 303, headers: { Location: API, 'Set-Cookie': adminCookie('', 0) } });
+    if (url.pathname === API + '/login') {
+      if (request.method !== 'POST') return new Response(null, { status: 303, headers: { Location: API } });
+      if (!adminOn(env)) return new Response(null, { status: 303, headers: { Location: API } });
+      let pw = '';
+      try { const form = await request.formData(); pw = String(form.get('password') || '').trim(); } catch (_) {}
+      if (!pw || !safeEqual(pw, adminCodeOf(env))) {
+        await new Promise(r => setTimeout(r, 800));                              // 猜錯就慢一點，暴力猜測不划算
+        return new Response(loginPage('密碼不正確，請再試一次。'), { status: 401, headers: HTML_HEADERS });
+      }
+      const exp = Math.floor(Date.now() / 1000) + ADMIN_TTL;
+      return new Response(null, { status: 303, headers: { Location: API, 'Set-Cookie': adminCookie(await adminToken(env, exp), ADMIN_TTL) } });
+    }
+
     if (request.method === 'GET') {
       if (url.pathname === API + '/ping') {                 // 網頁開啟時的探測：不呼叫 AI，不花額度
         await bumpStats(env, { o: 1 });                     // 順便當成「有人打開找文獻」的計次
@@ -721,8 +781,9 @@ async function api(request, env, url) {
                       budget: sp && sp.unit === 'neurons' ? sp.cap : null,
                       summaryOff: !!(sp && sp.used >= sp.cap * 0.85) }, 200, c.headers);
       }
+      if (adminOn(env) && !(await adminOk(request, env))) return new Response(loginPage(''), { status: 200, headers: HTML_HEADERS });
       const [sp2, stats] = await Promise.all([spendToday(env), statsDays(env, 30)]);
-      return new Response(statusPage(env, sp2, stats), { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+      return new Response(statusPage(env, sp2, stats), { status: 200, headers: HTML_HEADERS });
     }
 
     if (request.method !== 'POST') return fail('method', '只接受 POST', 405, c.headers);

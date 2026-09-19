@@ -422,7 +422,7 @@
         <fieldset>
           <legend>AI 中繼站</legend>
           <p class="small" id="relay-status">檢查中…</p>
-          <p class="small">中繼站就是同一個網站裡的 <code>_worker.js</code>（Cloudflare Pages）。要讓它運作，只需在 Pages 專案的 Settings → Bindings → Add → Workers AI，變數名稱填 <code>AI</code>，再重新部署一次。狀態頁在 <a href="/api/ai" target="_blank" rel="noopener">/api/ai</a>。中繼站不在時，中文轉檢索式與重點整理會停用，英文關鍵詞查詢與圖書館全文完全不受影響。</p>
+          <p class="small">中繼站就是同一個網站裡的 <code>_worker.js</code>（Cloudflare Pages）。要讓它運作，只需在 Pages 專案的 Settings → Bindings → Add → Workers AI，變數名稱填 <code>AI</code>，再重新部署一次。狀態頁在 <a href="/api/ai" target="_blank" rel="noopener">/api/ai</a>（在 Pages 的 Secrets 設了 <code>ADMIN_CODE</code> 後，要輸入管理者密碼才看得到）。中繼站不在時，中文轉檢索式與重點整理會停用，英文關鍵詞查詢與圖書館全文完全不受影響。</p>
           <label class="chk" style="margin:6px 0 0"><input type="checkbox" id="set-auto" checked> 查完自動做 AI 重點整理</label>
         </fieldset>
         <label class="field">AI 重點整理納入的篇數（依相關性取前 N 篇）。送給 AI 的摘要總字元固定，篇數愈多、每篇分到的愈少：<strong>20 篇＝每篇上限約 1,200 字元</strong>，涵蓋面較廣；10 篇＝每篇約 2,400 字元，單篇讀得較完整。短摘要不受上限影響，一律完整帶入。篇數多的那一邊額度成本較高
@@ -527,7 +527,7 @@ const CONFIG = {
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.5（2026-09）'
+  version: '5.6（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
