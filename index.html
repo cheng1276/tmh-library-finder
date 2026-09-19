@@ -67,6 +67,20 @@
   .desk-foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:16px}
   .ai-opt{font-size:13.5px;color:var(--ink)}
   .hint{margin:12px 0 0;padding:10px 12px;background:var(--brass-tint);border-radius:8px;font-size:13.5px;color:#5B3F08}
+  .hint a.gate-link{color:inherit;font-weight:500}
+  .pill.click{cursor:pointer}
+  /* 通關碼視窗 */
+  .gate{position:fixed;inset:0;z-index:60;background:rgba(22,38,46,.45);display:flex;align-items:center;justify-content:center;padding:20px}
+  .gate-box{background:var(--card);border-radius:12px;border-top:4px solid var(--jade);max-width:440px;width:100%;padding:22px 24px 18px;box-shadow:0 18px 48px rgba(0,0,0,.25);margin:0}
+  .gate-box h2{margin:0 0 8px;font-size:18px;font-weight:700}
+  .gate-box p{margin:0 0 12px;font-size:14px;color:var(--muted)}
+  .gate-row{display:flex;gap:8px;align-items:stretch}
+  .gate-row input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:16px;letter-spacing:.06em}
+  .gate-err{margin:10px 0 0;font-size:13.5px;color:var(--danger);min-height:1.4em}
+  .gate-acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .gate-acts .btn{justify-content:center;padding:10px 14px}
+  .gate-box .btn.primary{width:auto;padding:10px 14px}
+  .gate-foot{margin:14px 0 0;font-size:12.5px;color:var(--muted)}
   /* 快速／引導式 切換 */
   .tabs{display:flex;gap:4px;margin:-4px 0 14px;border-bottom:1px solid var(--line)}
   .tab{background:none;border:0;padding:8px 12px;font-size:14.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
@@ -371,7 +385,7 @@
         <p><strong>點閱會算進院方的統計嗎？</strong>ERM 只統計經過它跳轉的點擊。所以本頁點「圖書館全文」時，會先在新分頁經 ERM 登記一次（有期刊資料就登記到該期刊，否則登記到該平台），兩三秒後再自動轉到文章；登記時 ERM 認的是你在該瀏覽器登入的帳號，所以要先「啟用圖書館連線」。免費版本、PMC、直接開 DOI 這些不經圖書館的連結，本來就不會計入。</p>
         <p><strong>有些資料庫要另外登入，怎麼辦？</strong>經過圖書館代理時，大多數平台會以醫院 IP 認證，不必再輸入帳密。少數平台例外：一種是要先在院內網路註冊個人帳號（如 ClinicalKey、DynaMed），一種是圖書館提供共用帳密（如 EBSCO、Cochrane）。本頁不會存放任何帳密，遇到這些平台只會提示，並附上 ERM 資料庫簡介的連結；共用帳密只在登入 ERM 之後才看得到，請不要把它們貼到本頁或任何公開網頁。</p>
         <p id="about-ai" hidden><strong>AI 只做兩件事。</strong>一是讀懂問題或臨床情境，歸納成 PICO 問題並轉成 PubMed 檢索式，檢索式與替代策略都完整顯示給你檢查、可自行修改；二是整理「已經查到的摘要」，每句標注來源編號。AI 不會自行提供文獻。</p>
-        <p id="about-relay" hidden><strong>AI 是誰提供的？</strong>是圖書館自己架的「AI 中繼站」，就跑在本站同一個網域上（Cloudflare 免費方案），用 Cloudflare Workers AI 執行。同仁不需要任何 AI 帳號，也不必登入。送出去的只有你打的問題，以及 PubMed 的公開書目與摘要；Cloudflare 明文承諾不會把客戶內容用於訓練模型，中繼站本身也不保存查詢內容（只記錄每日用量數字）。請不要輸入病人可識別資料。額度用完時（每天早上 8 點重置），查詢與圖書館全文完全不受影響，只有「重點整理」會暫停到隔天。</p>
+        <p id="about-relay" hidden><strong>AI 是誰提供的？</strong>是圖書館自己架的「AI 中繼站」，就跑在本站同一個網域上（Cloudflare 免費方案），用 Cloudflare Workers AI 執行。同仁不需要任何 AI 帳號，也不必登入。送出去的只有你打的問題，以及 PubMed 的公開書目與摘要；Cloudflare 明文承諾不會把客戶內容用於訓練模型，中繼站本身也不保存查詢內容（只記錄每日用量數字）。請不要輸入病人可識別資料。額度用完時（每天早上 8 點重置），查詢與圖書館全文完全不受影響，只有「重點整理」會暫停到隔天。<span id="about-code" hidden>為了把免費額度留給本院同仁，AI 功能需要輸入圖書館公告的通關碼（每台瀏覽器只需一次）；PubMed 查詢與圖書館全文不需要通關碼。</span></p>
         <p><strong>要讓全院同仁使用？</strong>把這一個 HTML 檔（連同 holdings.csv）放到院內網站或任何靜態網頁空間（例如 GitHub Pages）即可，不需要伺服器程式、不需要任何付費服務；直接用瀏覽器開啟檔案也能用英文關鍵詞查詢，只是中文轉檢索式與重點整理需要中繼站（同一個網域上的 _worker.js）才會運作。</p>
         <p><strong>找不到想要的內容？</strong>華藝中文期刊、UpToDate、ClinicalKey、Micromedex 等資料庫不在 PubMed 索引範圍，請從圖書館遠端系統的資料庫清單進入查詢。</p>
       </div>
@@ -413,6 +427,17 @@
     </details>
   </section>
 </main>
+
+<div class="gate" id="gate" hidden role="dialog" aria-modal="true" aria-labelledby="gate-title">
+  <form class="gate-box" id="gate-form" autocomplete="off">
+    <h2 id="gate-title">AI 功能需要通關碼</h2>
+    <p id="gate-msg"></p>
+    <div class="gate-row"><input id="gate-code" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="通關碼" placeholder="通關碼"><button type="button" class="btn ghost" id="gate-show" aria-pressed="false">顯示</button></div>
+    <p class="gate-err" id="gate-err" aria-live="polite"></p>
+    <div class="gate-acts"><button type="button" class="btn" id="gate-skip">先不用 AI</button><button type="submit" class="btn primary" id="gate-ok">確定</button></div>
+    <p class="gate-foot" id="gate-foot"></p>
+  </form>
+</div>
 
 <footer>資料來源：NCBI PubMed（E-utilities）。全文透過台南市立醫院圖書館遠端連線系統取得，依各資料庫授權範圍為準。<span class="ver" id="ver"></span></footer>
 
@@ -473,7 +498,9 @@ const CONFIG = {
     // 若中繼站在別的網域，改填完整網址，例如 'https://tmh-ai.你的帳號.workers.dev'。
     // 填 '' 或找不到中繼站時：中文轉檢索式與重點整理停用，英文關鍵詞查詢與圖書館全文照常，頁面不會壞掉。
     endpoint: '/api/ai',
-    accessCode: '',               // 中繼站若設了存取碼就填在這裡（公開頁面上的存取碼只能擋掃描器，不是機密）
+    codeDays: 90,                 // 通關碼在同一台瀏覽器記住幾天。中繼站設了 ACCESS_CODE 才會用到；
+                                  // 通關碼由使用者自己輸入、只存在他的瀏覽器，這個檔案裡沒有它。
+    gateContact: '',              // 通關碼視窗底下的聯絡方式，例如 '圖書館分機 1234'；留空只顯示「請洽圖書館」
     autoSummary: true,            // 查完自動做重點整理（有中繼站時）
     summaryN: 20,                 // 重點整理最多納入前幾篇（依相關性排序的前 N 篇）
                                   // 回到 20：比對舊的 Claude 版才發現，它當年每篇只帶 700 字元、
@@ -484,7 +511,7 @@ const CONFIG = {
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.1（2026-09）'
+  version: '5.2（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -500,7 +527,7 @@ const PT_LABEL = {
 };
 const LANG = { chi:'中文', jpn:'日文', kor:'韓文', fre:'法文', ger:'德文', spa:'西班牙文', por:'葡萄牙文', ita:'義大利文', rus:'俄文' };
 
-const S = { pubmed:null, ai:null, summaryOff:false, relay:null, pmProbe:null, aiProbe:null, mode:'quick', src:'direct', busy:false, gen:0, holdings:null, holdingsSource:'',
+const S = { pubmed:null, ai:null, summaryOff:false, needCode:false, codeDeclined:false, relay:null, pmProbe:null, aiProbe:null, mode:'quick', src:'direct', busy:false, gen:0, holdings:null, holdingsSource:'',
             question:'', term:'', retstart:0, count:0, records:[], translation:null };
 
 /* ---------- 圖書館連結 ---------- */
@@ -769,7 +796,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function relay(task, payload){
   if (!relayBase()) { const e = new Error('未設定 AI 中繼站'); e.code = 'NO_RELAY'; throw e; }
   const headers = { 'Content-Type': 'application/json' };
-  if (CONFIG.ai.accessCode) headers['X-Access-Code'] = CONFIG.ai.accessCode;
+  const code = getCode(); if (code) headers['X-Access-Code'] = code;
   const body = JSON.stringify(Object.assign({ task }, payload));
   let lastErr = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -797,6 +824,46 @@ async function relay(task, payload){
     await sleep(500 * attempt);
   }
   throw lastErr || new Error('AI 中繼站無法連線');
+}
+
+/* ---------- 通關碼（中繼站設了 ACCESS_CODE 時才會要求） ----------
+   通關碼由使用者輸入，只存在自己的瀏覽器（localStorage），這個檔案裡沒有它；
+   中繼站以 x-access-code 標頭比對。只擋 AI（轉檢索式與整理），PubMed 查詢與全文不受影響。 */
+const CODE_KEY = 'tmh.finder.code';
+function getCode(){
+  try { const o = JSON.parse(localStorage.getItem(CODE_KEY) || 'null'); if (o && o.code && (!o.exp || o.exp > Date.now())) return String(o.code); } catch (_) {}
+  return '';
+}
+function setCode(code){ try { localStorage.setItem(CODE_KEY, JSON.stringify({ code: String(code), exp: Date.now() + (+CONFIG.ai.codeDays || 90) * 86400000 })); } catch (_) {} }
+function clearCode(){ try { localStorage.removeItem(CODE_KEY); } catch (_) {} }
+const codeReady = () => !S.needCode || !!getCode();      // 不需要通關碼、或已經有了
+
+let gateResolve = null;
+function askCode(msg){
+  if (gateResolve) return Promise.resolve(false);        // 已經開著一個視窗
+  $('#gate-err').textContent = ''; $('#gate-code').value = '';
+  $('#gate-msg').textContent = msg || ('AI 檢索式與重點整理使用圖書館的免費額度，僅供本院同仁。請輸入圖書館公告的通關碼；每台瀏覽器只需輸入一次，' + (+CONFIG.ai.codeDays || 90) + ' 天內有效。');
+  $('#gate-foot').textContent = '不知道通關碼？請洽圖書館' + (CONFIG.ai.gateContact ? '（' + CONFIG.ai.gateContact + '）' : '') + '。PubMed 查詢與圖書館全文不需要通關碼。';
+  $('#gate').hidden = false; setTimeout(() => $('#gate-code').focus(), 30);
+  return new Promise(res => { gateResolve = res; });
+}
+function closeGate(ok){ $('#gate').hidden = true; const r = gateResolve; gateResolve = null; if (r) r(ok); }
+// 需要通關碼的 AI 呼叫都經過這裡：沒有碼就先問；中繼站說碼錯（例如圖書館換了碼）就清掉、再問一次、重送一次。
+// explicit＝使用者明確按了 AI 的按鈕：就算他先前按過「先不用 AI」，也再問一次。
+async function withCode(run, explicit){
+  const noCode = () => { const e = new Error('未輸入通關碼'); e.code = 'NO_CODE'; throw e; };
+  if (S.needCode && !getCode()) {
+    if (S.codeDeclined && !explicit) noCode();
+    if (!(await askCode())) noCode();
+  }
+  try { return await run(); }
+  catch (e) {
+    if (e && e.code === 'AUTH') {
+      S.needCode = true; clearCode(); paintPills(); paintRelayStatus();
+      if (await askCode('通關碼不正確或已更換，請重新輸入圖書館公告的通關碼。')) return await run();
+    }
+    throw e;
+  }
 }
 
 // 問題 → PubMed 檢索式（中繼站已經整理好格式，這裡只做防呆）
@@ -936,10 +1003,12 @@ function paintPills(){
   a.innerHTML = '<i></i>' + (S.ai === null ? 'AI 助理檢查中' : S.ai ? 'AI 助理可用' : 'AI 助理未啟用');
   a.title = 'AI 可讀懂中文問題或臨床情境、轉成檢索式，並整理已查到的摘要';
   if (relayOn()) {
-    a.className = 'pill ok';
-    a.innerHTML = '<i></i>' + (S.summaryOff ? 'AI 助理可用（今日整理額度已滿）' : 'AI 助理可用（圖書館提供）');
-    a.title = '由圖書館的 AI 中繼站提供，同仁不需要自己的 AI 帳號；問題與摘要只送到圖書館的中繼站與 Cloudflare，不會用於訓練模型';
+    const gated = S.needCode && !getCode();
+    a.className = 'pill ok' + (gated ? ' click' : '');
+    a.innerHTML = '<i></i>' + (S.summaryOff ? 'AI 助理可用（今日整理額度已滿）' : gated ? 'AI 助理可用（需通關碼）' : 'AI 助理可用（圖書館提供）');
+    a.title = gated ? '第一次使用 AI 時會請你輸入圖書館公告的通關碼；按這裡也可以先輸入' : '由圖書館的 AI 中繼站提供，同仁不需要自己的 AI 帳號；問題與摘要只送到圖書館的中繼站與 Cloudflare，不會用於訓練模型';
   }
+  const ac = $('#about-code'); if (ac) ac.hidden = !(relayOn() && S.needCode);
   a.hidden = !relayOn();                 // 沒有中繼站就不顯示這顆燈，頁面單純一點
   $('#ai-opt').hidden = !relayOn();
   const ab = $('#about-ai'); if (ab) ab.hidden = !relayOn();
@@ -1102,6 +1171,8 @@ function paintAIPanel(){
   if (!show) return;
   const n = Math.min(withAbs.length, +CONFIG.ai.summaryN || 20);
   $('#ai-action').hidden = !byRelay;
+  const b = $('#summarize');
+  if (!b.disabled && b.textContent !== '再試一次') b.textContent = codeReady() ? '請 AI 整理重點（只依據上列文獻的摘要）' : '輸入通關碼，請 AI 整理重點';
   $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻；不會加入清單以外的內容。';
 }
 // 每篇摘要能帶多少字。原則：先讓每一篇都拿到完整摘要，只有在總量超過上限時才砍，
@@ -1137,7 +1208,8 @@ function cleanText(t, max){
   return x;
 }
 // 重點整理：把已查到的摘要送到圖書館的中繼站，由它整理成三段式重點
-async function aiSummarize(){
+async function aiSummarize(opts){
+  const explicit = !!(opts && opts.explicit);      // 使用者自己按了按鈕（就算先前按過「先不用 AI」也再問一次通關碼）
   const gen = S.gen || 0;                          // 這份整理屬於哪一次查詢
   const stale = () => gen !== (S.gen || 0);        // 使用者已另起新查詢 → 這份整理作廢，不貼回畫面
   const N = Math.max(4, +CONFIG.ai.summaryN || 20);
@@ -1150,7 +1222,7 @@ async function aiSummarize(){
   $('#aipanel').hidden = false; $('#ai-action').hidden = false;
   $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + recs.length + ' 筆有摘要的文獻；不會加入清單以外的內容。';
   try {
-    const d = await relay('summarize', {
+    const d = await withCode(() => relay('summarize', {
       question: cleanText(S.question || S.term, 500),
       records: recs.map((r, i) => ({
         n: r.n,
@@ -1158,7 +1230,7 @@ async function aiSummarize(){
         meta: [r.journal, r.year, (r.pubtypes || []).filter(t => PT_LABEL[t]).slice(0, 2).map(t => PT_LABEL[t]).join('、')].filter(Boolean).join('；'),
         abstract: cleanText(absText(r), per[i])
       }))
-    });
+    }), explicit);
     if (stale()) return;
     const text = String((d && d.text) || '');
     if (!text) throw new Error('AI 沒有回傳內容');
@@ -1175,6 +1247,8 @@ async function aiSummarize(){
       showHint('圖書館今天的「AI 重點整理」額度已用完（台灣時間每天早上 8 點重置）。查詢與圖書館全文完全不受影響，只有重點整理要等明天。');
     } else if (e.code === 'NO_RELAY') {
       S.ai = false; paintPills(); paintAIPanel();
+    } else if (e.code === 'NO_CODE') {               // 沒輸入通關碼：不算錯誤，按鈕留著讓他之後再按
+      paintAIPanel();
     } else {
       showStatus('AI 整理失敗：' + e.message, 'error');
     }
@@ -1307,21 +1381,24 @@ async function search(opts = {}){
         S.question = question; let base = question;
         if (S.ai && $('#useai').checked) {
           setBusy(true, 'AI 正在把問題轉成 PubMed 檢索式…');
-          try { S.translation = await aiTranslate(question); base = S.translation.query; }
+          try { S.translation = await withCode(() => aiTranslate(question)); base = S.translation.query; }
           catch (e) {
             // AI 出任何狀況都不該擋住查詢：只要使用者自己打的字能查，就照查；真的沒有備援時才停下來。
             if (e.code === 'NOT_SEARCHABLE') { setBusy(false); showHint('AI 判斷這個問題不適合用 PubMed 查：' + e.message + ' 請改成醫學或臨床相關的問題。'); return; }
             if (e.code === 'QUOTA' || e.code === 'NO_RELAY' || e.code === 'CONFIG') { S.ai = false; paintPills(); }
-            const why = e.code === 'QUOTA' ? '圖書館今天的 AI 額度已用完（每天早上 8 點重置）。'
+            const why = e.code === 'NO_CODE' ? '沒有輸入通關碼，這次沒有使用 AI。'
+                      : e.code === 'QUOTA' ? '圖書館今天的 AI 額度已用完（每天早上 8 點重置）。'
                       : e.code === 'BADQUERY' ? 'AI 這次沒有給出可用的英文檢索式（已自動重試過）。'
                       : (e.code === 'NO_RELAY' || e.code === 'CONFIG') ? 'AI 中繼站目前無法使用。'
                       : 'AI 轉換檢索式失敗（' + esc(e.message) + '）。';
             if (searchable(question)) {                 // 使用者打的是英文 → 直接用原文查，不要卡住他
               S.translation = null;
-              showHintHTML(why + '已改用你輸入的原文查詢；想讓 AI 再試一次，請再按一次「查找」。' + rawBox(e));
+              showHintHTML(why + '已改用你輸入的原文查詢；' + (e.code === 'NO_CODE' ? '要用 AI 請先<a href="#" class="gate-link">輸入通關碼</a>。' : '想讓 AI 再試一次，請再按一次「查找」。') + rawBox(e));
             } else {                                    // 中文問題又沒有 AI 可用 → 只能請他改英文
               setBusy(false);
-              showHintHTML(why + '請再按一次「查找」讓 AI 重試，或直接輸入英文關鍵詞（例如 hip fracture delirium prevention）。' + rawBox(e));
+              showHintHTML(why + (e.code === 'NO_CODE'
+                ? '中文問題需要 AI 轉成英文檢索式：請<a href="#" class="gate-link">輸入通關碼</a>後再按一次「查找」，或直接輸入英文關鍵詞（例如 hip fracture delirium prevention）。'
+                : '請再按一次「查找」讓 AI 重試，或直接輸入英文關鍵詞（例如 hip fracture delirium prevention）。') + rawBox(e));
               return;
             }
           }
@@ -1359,7 +1436,7 @@ async function search(opts = {}){
         } else if (!S.records.length) emptyState(es);
         $('#more-wrap').hidden = !(S.retstart < S.count);
         paintAIPanel();
-        if (fresh && summaryRelayOn() && CONFIG.ai.autoSummary && S.records.some(r => r.abstractParts && r.abstractParts.length)) aiSummarize();   // 有中繼站就自動整理；不等它，結果先呈現
+        if (fresh && summaryRelayOn() && codeReady() && CONFIG.ai.autoSummary && S.records.some(r => r.abstractParts && r.abstractParts.length)) aiSummarize();   // 有中繼站（且有通關碼）就自動整理；不等它，結果先呈現
         return;
       } catch (e) {
         if (!(e instanceof TypeError)) throw e;   // 真正的查詢錯誤照常顯示
@@ -1381,19 +1458,21 @@ async function probePubMed(){
 // 探測中繼站：只是問一句狀態，不會用掉 AI 額度
 function paintRelayStatus(){
   const el = $('#relay-status'); if (!el) return;
-  el.textContent = !relayBase() ? '未設定中繼站：中文轉檢索式與重點整理停用；英文關鍵詞查詢與圖書館全文不受影響。'
-    : S.ai === false ? '中繼站無法使用（' + relayBase() + '）——中文轉檢索式與重點整理暫時停用，英文關鍵詞查詢與圖書館全文不受影響。若這個網站是 Cloudflare Pages，請確認 _worker.js 已上傳，且 Settings → Bindings 已加入 Workers AI（變數名稱 AI）並重新部署。'
+  el.innerHTML = !relayBase() ? '未設定中繼站：中文轉檢索式與重點整理停用；英文關鍵詞查詢與圖書館全文不受影響。'
+    : S.ai === false ? '中繼站無法使用（' + esc(relayBase()) + '）——中文轉檢索式與重點整理暫時停用，英文關鍵詞查詢與圖書館全文不受影響。若這個網站是 Cloudflare Pages，請確認 _worker.js 已上傳，且 Settings → Bindings 已加入 Workers AI（變數名稱 AI）並重新部署。'
     : S.ai === null ? '檢查中…'
-    : '中繼站正常（' + relayBase() + '）'
-      + (S.relay && S.relay.usedText ? '，今日已用約 ' + S.relay.usedText : '')     // 中繼站自己算好單位（neurons 或美元）
-      + (S.summaryOff ? '；今日重點整理額度已滿。' : '。');
+    : '中繼站正常（' + esc(relayBase()) + '）'
+      + (S.relay && S.relay.usedText ? '，今日已用約 ' + esc(S.relay.usedText) : '')     // 中繼站自己算好單位（neurons 或美元）
+      + (S.summaryOff ? '；今日重點整理額度已滿。' : '。')
+      + (S.needCode ? ' AI 功能需要通關碼（中繼站已設定 ACCESS_CODE）：這台瀏覽器' + (getCode() ? '已記住通關碼（<a href="#" class="gate-link">更換</a>／<a href="#" class="code-clear">清除</a>）' : '尚未輸入（<a href="#" class="gate-link">輸入</a>）') + '。'
+                    : ' 未設定通關碼：任何知道網址的人都能用 AI 額度；要限制為本院同仁，請在 Pages 專案 Settings → Variables and Secrets 加一個 ACCESS_CODE（Secret），再重新部署。');
 }
 async function probeAI(){
   if (!relayBase()) { S.ai = false; paintPills(); paintRelayStatus(); return; }   // 沒有中繼站：不對外送任何請求
   try {
     const r = await fetch(relayBase() + '/ping', { cache: 'no-store' });
     const j = await r.json();
-    S.relay = j; S.ai = !!(j && j.ok && j.ai); S.summaryOff = !!(j && j.summaryOff);
+    S.relay = j; S.ai = !!(j && j.ok && j.ai); S.summaryOff = !!(j && j.summaryOff); S.needCode = !!(j && j.needCode);
   } catch (e) { S.ai = false; }
   paintPills(); paintRelayStatus();
 }
@@ -1425,7 +1504,36 @@ $('#strategy').addEventListener('click', e => {
     search({ fresh: true, rawTerm: applyFilters(keep.query), keepTranslation: true });
   }
 });
-$('#summarize').addEventListener('click', aiSummarize);
+$('#summarize').addEventListener('click', () => aiSummarize({ explicit: true }));
+
+// 通關碼視窗
+$('#gate-skip').addEventListener('click', () => { S.codeDeclined = true; closeGate(false); });
+$('#gate').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); S.codeDeclined = true; closeGate(false); } });
+$('#gate-show').addEventListener('click', () => {
+  const i = $('#gate-code'), show = i.type === 'password';
+  i.type = show ? 'text' : 'password'; $('#gate-show').textContent = show ? '隱藏' : '顯示'; $('#gate-show').setAttribute('aria-pressed', show ? 'true' : 'false'); i.focus();
+});
+$('#gate-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const code = $('#gate-code').value.trim();
+  if (!code) { $('#gate-err').textContent = '請輸入通關碼。'; $('#gate-code').focus(); return; }
+  const ok = $('#gate-ok'); ok.disabled = true; ok.textContent = '確認中…'; $('#gate-err').textContent = '';
+  try {                                                   // 先向中繼站驗一次（不花額度），對了才存進瀏覽器
+    const r = await fetch(relayBase(), { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Access-Code': code }, body: JSON.stringify({ task: 'verify' }) });
+    if (r.status === 401) { $('#gate-err').textContent = '通關碼不正確，請再試一次。'; $('#gate-code').select(); }
+    else if (!r.ok) { $('#gate-err').textContent = '中繼站回應 ' + r.status + '，請稍後再試。'; }
+    else { setCode(code); S.codeDeclined = false; paintPills(); paintRelayStatus(); paintAIPanel(); closeGate(true); }
+  } catch (_) { $('#gate-err').textContent = '無法連線到中繼站，請稍後再試。'; }
+  ok.disabled = false; ok.textContent = '確定';
+});
+// 提示、設定區裡的「輸入／更換／清除通關碼」連結，以及燈號
+document.addEventListener('click', e => {
+  const a = e.target.closest('a.gate-link, a.code-clear'); if (!a) return;
+  e.preventDefault();
+  if (a.classList.contains('code-clear')) { clearCode(); paintPills(); paintRelayStatus(); paintAIPanel(); return; }
+  S.codeDeclined = false; askCode();
+});
+$('#pill-ai').addEventListener('click', () => { if (S.needCode && !getCode() && !S.busy) { S.codeDeclined = false; askCode(); } });
 $('#ver').textContent = '找文獻 網頁版 ' + CONFIG.version + (relayBase() ? '　AI：圖書館中繼站' : '　AI：未啟用（未設定中繼站）');
 // 中繼站在本站時，順手把狀態頁連結指對
 (() => { const a = document.querySelector('a[href="/api/ai"]'); if (a && relayBase() && relayBase() !== '/api/ai') a.href = relayBase(); })();

@@ -22,14 +22,18 @@
  *
  * 選用：
  *   Bindings → Add → KV namespace，變數名稱 QUOTA（用量統計與快取）
- *   Variables → ALLOWED_ORIGINS（逗號分隔；不填＝只允許本站）、ACCESS_CODE、
+ *   Variables → ALLOWED_ORIGINS（逗號分隔；不填＝只允許本站）、
  *               DAILY_NEURONS（預設 9200）、MODEL_TRANSLATE、MODEL_SUMMARY
+ *   Secrets   → ACCESS_CODE（通關碼）：設了之後，網頁的 AI 功能會要使用者輸入一次
+ *               （只存在他自己的瀏覽器，預設記 90 天）。PubMed 查詢、圖書館全文、
+ *               /ping 與這個狀態頁都不受影響——它們不花額度。用途是把免費的 AI 額度
+ *               留給本院同仁：網址是公開的，沒有通關碼的話，任何人都能把額度用光。
  *
  * 自我測試：用瀏覽器打開  https://你的網站/api/ai
  */
 const API = '/api/ai';   // 中繼站的路徑；其餘網址一律當成網站檔案
 
-const VERSION = '3.3 (2026-09) / Pages';
+const VERSION = '3.4 (2026-09) / Pages';
 // 提示詞版本。改動任何提示詞就把它加一 —— 快取鍵含這個版本，舊的結果會自動作廢。
 // （之前改了提示詞卻沒換快取鍵，同一個問題一直回舊的短檢索式，改什麼都看不出效果。）
 const PROMPT_V = 'p7';
@@ -226,6 +230,17 @@ function abstractBudget(lens, total, perMax){
   return L.map(n => Math.min(n, lvl));
 }
 const estTokens = s => Math.ceil(String(s || '').length / 3.2);   // 中英混合的粗估
+
+/* ---------------- 通關碼 ----------------
+   由使用者在網頁輸入、只存在他的瀏覽器；這裡只做比對。比對用固定時間，兩邊先 trim。 */
+const codeOf = env => String(env.ACCESS_CODE || '').trim();
+function safeEqual(a, b) {
+  const enc = new TextEncoder(), x = enc.encode(String(a)), y = enc.encode(String(b));
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] || 0) ^ (y[i] || 0);
+  return diff === 0;
+}
+const codeOk = (request, env) => !codeOf(env) || safeEqual((request.headers.get('x-access-code') || '').trim(), codeOf(env));
 
 function cors(request, env, selfOrigin) {
   const origin = request.headers.get('Origin') || '';
@@ -623,7 +638,8 @@ function statusPage(env, sp, stats) {
     ['Workers AI 綁定（AI）', env.AI ? '✅ 已綁定' : (cl ? '⚪ 未綁定（目前走 Claude，但建議還是綁著當備援）' : '❌ 未綁定 —— 請到 Pages 專案 Settings → Bindings → Add → Workers AI，變數名稱填 AI，再重新部署')],
     ['KV 綁定（QUOTA，選用）', env.QUOTA ? '✅ 已綁定（可統計用量、快取結果）' : '⚪ 未綁定（仍可運作，但沒有用量統計與快取）'],
     ['允許的網站', env.ALLOWED_ORIGINS ? String(env.ALLOWED_ORIGINS) : '✅ 只允許本站自己呼叫（預設，不必設定）'],
-    ['存取碼（ACCESS_CODE，選用）', env.ACCESS_CODE ? '已設定' : '未設定'],
+    ['通關碼（ACCESS_CODE，選用）', codeOf(env) ? '✅ 已設定——網頁的 AI 功能會要求同仁輸入一次（每台瀏覽器預設記 90 天）；PubMed 查詢、圖書館全文與這個狀態頁不受影響'
+                                          : '⚪ 未設定——任何知道網址的人都能用掉 AI 額度。建議到 Settings → Variables and Secrets 加一個 ACCESS_CODE（型別選 Secret），再重新部署'],
     ['今日已用（估計）', spendLabel(sp) + (cl ? '　（每日上限可用 DAILY_USD 調整；用到 85% 會先停重點整理，保住轉檢索式）' : '')],
     ['今日使用', env.QUOTA ? useLine(d0) + '　不重複問題 ' + nf((d0.q || []).length) + ' 個' : '未統計（未綁 KV）'],
     ['最近 7 天', env.QUOTA ? useLine(w7) : '未統計（未綁 KV）'],
@@ -650,6 +666,7 @@ ${rows30.slice(0, 14).map(r => '<tr><td style="width:auto">' + r.day + '</td><td
 
 <p style="margin-top:22px"><strong>自我測試</strong>（會實際用掉一點額度）：</p>
 <p><input id="qq" value="老年髖部骨折術後如何預防譫妄？" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #D5DFDA;border-radius:6px;box-sizing:border-box"></p>
+${codeOf(env) ? '<p><input id="cc" type="password" placeholder="通關碼（已設定 ACCESS_CODE，測試時要填）" autocomplete="off" style="width:100%;font:inherit;padding:8px 10px;border:1px solid #D5DFDA;border-radius:6px;box-sizing:border-box"></p>' : ''}
 <button onclick="t('translate')">測試：轉檢索式</button><button class="alt" onclick="t('summarize')">測試：重點整理</button>
 <pre id="out" hidden></pre>
 <script>
@@ -663,7 +680,8 @@ async function t(task){
         {n:2,title:'Melatonin for delirium prevention in older surgical patients: a meta-analysis',meta:'Lancet Glob Health；2023；統合分析',abstract:'Pooled analysis of 12 trials (n=2340) found melatonin reduced delirium incidence (OR 0.62, 95% CI 0.45-0.86) with substantial heterogeneity (I2=68%).'}]};
   const t0=Date.now();
   try{
-    const r=await fetch('/api/ai',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    const cc=document.getElementById('cc'); const h={'content-type':'application/json'}; if(cc&&cc.value.trim()) h['x-access-code']=cc.value.trim();
+    const r=await fetch('/api/ai',{method:'POST',headers:h,body:JSON.stringify(body)});
     const j=await r.json();
     o.textContent='HTTP '+r.status+'　耗時 '+((Date.now()-t0)/1000).toFixed(1)+' 秒\\n\\n'+JSON.stringify(j,null,2);
   }catch(e){ o.textContent='呼叫失敗：'+e.message; }
@@ -697,6 +715,7 @@ async function api(request, env, url) {
         await bumpStats(env, { o: 1 });                     // 順便當成「有人打開找文獻」的計次
         const sp = await spendToday(env);
         return json({ ok: true, version: VERSION, ai: !!env.AI || claudeOn(env), kv: !!env.QUOTA,
+                      needCode: !!codeOf(env),                        // 網頁看到 true 才會在第一次用 AI 時要通關碼
                       engine: engineOf(env), usedText: spendLabel(sp),
                       used: sp && sp.unit === 'neurons' ? sp.used : null,
                       budget: sp && sp.unit === 'neurons' ? sp.cap : null,
@@ -708,8 +727,7 @@ async function api(request, env, url) {
 
     if (request.method !== 'POST') return fail('method', '只接受 POST', 405, c.headers);
     if (!c.ok) return fail('origin', '這個網站不在允許清單中（預設只允許本站呼叫；要開放其他網站請設定 ALLOWED_ORIGINS）', 403, c.headers);
-    if (env.ACCESS_CODE && request.headers.get('x-access-code') !== env.ACCESS_CODE) return fail('auth', '存取碼不正確', 401, c.headers);
-    if (!env.AI && !claudeOn(env)) return fail('config', '還沒有綁定 Workers AI（Pages 專案 Settings → Bindings → Add → Workers AI，變數名稱填 AI，再重新部署）', 500, c.headers);
+    if (!codeOk(request, env)) return fail('auth', '通關碼不正確', 401, c.headers);
 
     let body;
     try {
@@ -719,7 +737,9 @@ async function api(request, env, url) {
     } catch (e) { return fail('bad_request', '無法解析送出的內容', 400, c.headers); }
 
     const task = body && body.task;
-    if (task !== 'translate' && task !== 'summarize') return fail('bad_request', 'task 只能是 translate 或 summarize', 400, c.headers);
+    if (task === 'verify') return json({ ok: true, needCode: !!codeOf(env) }, 200, c.headers);   // 只驗碼：不呼叫 AI、不計統計
+    if (!env.AI && !claudeOn(env)) return fail('config', '還沒有綁定 Workers AI（Pages 專案 Settings → Bindings → Add → Workers AI，變數名稱填 AI，再重新部署）', 500, c.headers);
+    if (task !== 'translate' && task !== 'summarize') return fail('bad_request', 'task 只能是 translate、summarize 或 verify', 400, c.headers);
 
     // 額度守門：先保住「轉檢索式」這個核心功能。Claude 模式守的是金額，Workers AI 守的是 neurons。
     const sp = await spendToday(env);
