@@ -511,7 +511,7 @@ const CONFIG = {
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.2（2026-09）'
+  version: '5.3（2026-09）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1199,7 +1199,7 @@ function abstractBudget(lens, total, perMax){
 function linkRefs(html, valid){
   return String(html).replace(/\[(\d+(?:\s*[,、;；]\s*\d+)*)\]/g, (m, grp) =>
     grp.split(/\s*[,、;；]\s*/).map(n => valid.has(+n)
-      ? '<a href="#" class="ref" data-ref="' + n + '" title="跳到清單上第 ' + n + ' 篇（會展開摘要；要全文再按那一筆的按鈕）">[' + n + ']</a>'
+      ? '<a href="#" class="ref" data-ref="' + n + '" title="跳到清單上第 ' + n + ' 篇（摘要與全文請按那一筆的按鈕）">[' + n + ']</a>'
       : '[' + n + ']').join(''));
 }
 function cleanText(t, max){
@@ -1572,11 +1572,7 @@ $('#ai-sum').addEventListener('click', e => {
   e.preventDefault();
   const li = document.getElementById('rec-' + a.dataset.ref);
   if (!li) return;
-  const btn = li.querySelector('[data-act="abs"]'), box = li.querySelector('.abs');
-  if (btn && box && !box.classList.contains('open')) {
-    box.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); btn.textContent = '收合摘要';
-  }
-  backToSummary(a);
+  backToSummary(a);                                  // 只跳過去、閃一下；摘要不自動展開，要看再按那一筆的「摘要」
   li.scrollIntoView({ block: 'start' });
   li.classList.remove('flash'); void li.offsetWidth; li.classList.add('flash');   // 重新觸發動畫
 });
