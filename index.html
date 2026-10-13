@@ -382,7 +382,7 @@
     <span><strong class="st" id="actbar-status" hidden></strong>點「圖書館全文」若出現 <strong>HyProxy Login</strong> 畫面，表示這個瀏覽器還沒啟用（或閒置超過 <span class="sess-h">2</span> 小時已逾時）：請關閉那一頁，按左邊按鈕完成一次登入（它會開啟 NEJM），再回來點連結。不要在 HyProxy Login 輸入帳密。</span>
   </div>
   <ol id="results"></ol>
-  <p class="firstnote" id="firstnote" hidden>「圖書館全文」會依館藏清單決定路線（ClinicalKey、Ovid、EBSCO 直達單篇，或解析 DOI 後經圖書館代理開啟出版社網頁）。代理的登入狀態是跟著瀏覽器走的：每台電腦、每個瀏覽器第一次使用時，按一次「啟用圖書館連線」（登入遠端系統，它會開啟 NEJM），之後連結就會直接通；閒置超過 <span class="sess-h">2</span> 小時登入狀態會失效，再按一次即可。上方「圖書館連線」燈號：按過啟用並回答「是，已登入」才會轉綠，之後從本頁開全文會延續它的時間；超過 <span class="sess-h">2</span> 小時轉為「可能已逾時」。「圖書館全文（出版社）」點進去若只有摘要，請改試「EBSCO 全文」或「免費版本」，再不行就用館際合作（NDDS）。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
+  <p class="firstnote" id="firstnote" hidden>「圖書館全文」會依館藏清單決定路線（Ovid、EBSCO 直達單篇；ClinicalKey 由 ERM 開本刊；其餘解析 DOI 後經圖書館代理開啟出版社網頁）。代理的登入狀態是跟著瀏覽器走的：每台電腦、每個瀏覽器第一次使用時，按一次「啟用圖書館連線」（登入遠端系統，它會開啟 NEJM），之後連結就會直接通；閒置超過 <span class="sess-h">2</span> 小時登入狀態會失效，再按一次即可。上方「圖書館連線」燈號：按過啟用並回答「是，已登入」才會轉綠，之後從本頁開全文會延續它的時間；超過 <span class="sess-h">2</span> 小時轉為「可能已逾時」。「圖書館全文（出版社）」點進去若只有摘要，請改試「EBSCO 全文」或「免費版本」，再不行就用館際合作（NDDS）。帳號密碼只輸入在圖書館官方頁面，不會經過本頁。</p>
   <div id="more-wrap" hidden><button type="button" class="btn wide" id="more">載入更多</button></div>
 
   <section class="about" aria-label="說明與設定">
@@ -393,7 +393,7 @@
         <p><strong>帳號密碼不經過本頁。</strong>本頁不會要求、也不會儲存你的圖書館帳號密碼。點「圖書館全文」會開啟圖書館官方的遠端連線系統（www.scmhem.org.tw），登入之後即可經由圖書館訂閱取得全文。</p>
         <p><strong>為什麼要「啟用圖書館連線」？</strong>貴院的代理引擎是 HyProxy，它自己的登入畫面（HyProxy Login）不接受同仁的帳號密碼；正確的方式是登入 ERM 遠端系統後，由 ERM 開啟一個期刊，這時 HyProxy 才會記住這個瀏覽器已通過驗證。「啟用圖書館連線」就是替你做這件事（借用 ERM 內的 NEJM 連結）。狀態存在瀏覽器裡，所以換電腦、換瀏覽器或隔一段時間過期後，要再按一次。</p>
         <p><strong>本頁不碰任何資料庫的內容。</strong>它只依 DOI、PII 或 PMID 產生連到各平台的連結，不下載、不儲存、不轉送任何資料庫內容；全文一律由 ClinicalKey、Ovid、ProQuest、EBSCO 等平台依本院的授權直接提供給你的瀏覽器，和你自己從遠端系統點進去完全相同。交給 Claude 的只有 PubMed 的公開書目與摘要，不含任何訂閱全文。</p>
-        <p><strong>「圖書館全文」怎麼連？</strong>圖書館的代理引擎（www.scmhem.org.tw 的 3001 埠）只代理有訂閱的出版平台，PubMed 與 doi.org 本身不在其中。本頁會先用館藏清單（holdings.csv）比對本刊訂在哪個平台再決定路線：ClinicalKey 用 PubMed 給的 PII 直達單篇、Ovid 用 DOI 直達、EBSCO MEDLINE 用 PMID 直達、ProQuest 等集成平台由 ERM 開本刊；其餘則用 doi.org 與 Crossref 的公開 API 把 DOI 解析成出版社網址，再交給代理引擎的登入入口（login?url=）處理登入與轉址，經代理後的網址長得像 www-nejm-org.www.scmhem.org.tw:3001。免費文章（PMC 或開放取用出版社）會直接開啟出版社頁面。</p>
+        <p><strong>「圖書館全文」怎麼連？</strong>圖書館的代理引擎（www.scmhem.org.tw 的 3001 埠）只代理有訂閱的出版平台，PubMed 與 doi.org 本身不在其中。本頁會先用館藏清單（holdings.csv）比對本刊訂在哪個平台再決定路線：Ovid 用 DOI 直達、EBSCO MEDLINE 用 PMID 直達、ClinicalKey 與 ProQuest 等集成平台由 ERM 開本刊（出版社不同意本頁直達 ClinicalKey 單篇，請在平台內以篇名或 DOI 查找）；其餘則用 doi.org 與 Crossref 的公開 API 把 DOI 解析成出版社網址，再交給代理引擎的登入入口（login?url=）處理登入與轉址，經代理後的網址長得像 www-nejm-org.www.scmhem.org.tw:3001。免費文章（PMC 或開放取用出版社）會直接開啟出版社頁面。</p>
         <p><strong>為什麼有時會顯示「未訂閱」？</strong>代理引擎只認得「出版平台」，不知道圖書館在該平台上訂了哪些期刊，所以同一個網站上有的期刊能開、有的不能。若圖書館提供期刊清單（holdings.csv），本頁會用 ISSN 與刊名比對，直接標示「館藏訂閱」或「清單未列此刊」。拿不到的文章可用「免費版本」（OpenAlex／Unpaywall 找到的合法免費全文）或「館際合作」取得。</p>
         <p><strong>點閱會算進院方的統計嗎？</strong>ERM 只統計經過它跳轉的點擊。所以本頁點「圖書館全文」時，會先在新分頁經 ERM 登記一次（有期刊資料就登記到該期刊，否則登記到該平台），兩三秒後再自動轉到文章；登記時 ERM 認的是你在該瀏覽器登入的帳號，所以要先「啟用圖書館連線」。免費版本、PMC、直接開 DOI 這些不經圖書館的連結，本來就不會計入。</p>
         <p><strong>有些資料庫要另外登入，怎麼辦？</strong>經過圖書館代理時，大多數平台會以醫院 IP 認證，不必再輸入帳密。少數平台例外：一種是要先在院內網路註冊個人帳號（如 ClinicalKey、DynaMed），一種是圖書館提供共用帳密（如 EBSCO、Cochrane）。本頁不會存放任何帳密，遇到這些平台只會提示，並附上 ERM 資料庫簡介的連結；共用帳密只在登入 ERM 之後才看得到，請不要把它們貼到本頁或任何公開網頁。</p>
@@ -486,7 +486,11 @@ const CONFIG = {
   ovid: { enabled: true, base: 'https://ovidsp.ovid.com/ovidweb.cgi' },
   // Elsevier 期刊：ScienceDirect 經代理無法正常開啟（它對代理極挑剔），而本院 Elsevier 期刊主要訂在 ClinicalKey，
   // 所以 Elsevier 文章一律改走 ClinicalKey（用 PII 直達單篇）；只有館藏清單明確標示 ScienceDirect 的期刊才走 ScienceDirect。
-  elsevier: { via: 'clinicalkey' },
+  // via 可填：
+  //   'clinicalkey'：Elsevier 文章用 PII 直達 ClinicalKey 單篇（預設）
+  //   'erm'        ：不組 ClinicalKey 單篇網址。ClinicalKey 的期刊改由 ERM 開本刊（圖書館自己的授權路徑，同仁再在平台內找該篇），
+  //                  其餘 Elsevier 文章走出版社網站。出版社不同意本頁直達單篇時改用這個。
+  elsevier: { via: 'erm' },            // 2026-10：Elsevier 來函拒絕授權本頁直達單篇，改由 ERM 開本刊
   // 點閱統計：ERM 只會統計經過它 sendurl_api 的點擊。開啟後，點「圖書館全文」會先在新分頁經 ERM 登記一次
   //（有 journal_id 就登記到該期刊，否則登記到該平台的資料庫），約 delay 毫秒後再自動轉到文章。關閉則直接開文章。
   count: { via: 'erm', delay: 2500 },          // 「MEDLINE電子期刊」= EBSCOhost。資料庫代碼：mnh = MEDLINE with Full Text、mdc = MEDLINE Complete、cmedm = MEDLINE
@@ -522,12 +526,14 @@ const CONFIG = {
                                   // 回到 20：比對舊的 Claude 版才發現，它當年每篇只帶 700 字元、
                                   // 一半以上的摘要都被砍在 Methods，寫出來仍然比較好——可見瓶頸是模型，
                                   // 不是摘要長度。既然長度不是瓶頸，20 篇的涵蓋面就比 10 篇的深度值得。
+    excludeElsevier: false,       // true＝Elsevier 期刊的摘要不送給 AI（依 PubMed 的版權標示「Elsevier」或 DOI 前綴判斷），
+                                  // 整理範圍那一行會註明略過幾篇；清單上的摘要照常可讀。出版社不同意其摘要經 AI 處理時改為 true。
     summaryChars: 24000           // 送給 AI 的摘要「總」字元上限（不是每篇平分）。
                                   // 規則見 abstractBudget：每篇先給完整摘要，只有總量超過上限時，
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.6（2026-09）'
+  version: '5.8（2026-10）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -575,6 +581,10 @@ const ebscoArticleUrl = rec => 'https://search.ebscohost.com/login.aspx?direct=t
 const wrapSync = url => CONFIG.library.fulltextMode === 'direct' ? url : CONFIG.library.fulltextMode === 'publisher' ? viaLibrary(url) : loginUrlFor(url);
 // Elsevier 的 DOI 前綴（10.1016 為主；其餘為 Elsevier 旗下舊前綴）
 const isElsevierDoi = doi => /^10\.(1016|1053|1054|1067|1078|1157|1529|3816)\//i.test(doi || '');
+// 這一篇是不是 Elsevier 的：DOI 前綴，或 PubMed 摘要的版權標示寫著 Elsevier
+const isElsevierRec = rec => isElsevierDoi(rec.doi) || /elsevier/i.test(rec.copyright || '');
+// 這一篇的摘要能不能送給 AI：要有摘要；若開了 excludeElsevier，Elsevier 的不送
+const aiEligible = rec => !!(rec.abstractParts && rec.abstractParts.length) && !(CONFIG.ai.excludeElsevier && isElsevierRec(rec));
 // 這筆是否要改走 ClinicalKey：Elsevier 文章、設定為經 ClinicalKey、且館藏清單沒有明確說它在 ScienceDirect
 const elsevierViaCK = (rec, route) => CONFIG.elsevier.via === 'clinicalkey' && !!rec.doi && !!rec.pii && isElsevierDoi(rec.doi) && route.kind === 'article' && !(route.entry && /sciencedirect/i.test(route.entry.note || ''));
 // ClinicalKey 單篇直達：用 PubMed 給的 PII（Elsevier 文章幾乎都有）
@@ -614,7 +624,7 @@ function routeFor(rec, forceArticle){
   if (isAggregator(e)) {
     if (/medline|ebsco/i.test(e.note) && rec.pmid) return { kind: 'ebsco', h, entry: e };
     if (/ovid/i.test(e.note) && rec.doi && CONFIG.ovid.enabled) return { kind: 'ovid', h, entry: e };
-    if (/clinicalkey/i.test(e.note) && rec.pii) return { kind: 'clinicalkey', h, entry: e };   // 沒有 PII 就無法直達單篇，改由 ERM 開本刊
+    if (/clinicalkey/i.test(e.note) && rec.pii && CONFIG.elsevier.via === 'clinicalkey') return { kind: 'clinicalkey', h, entry: e };   // 沒有 PII（或設定不直達）就改由 ERM 開本刊
     if (ermJournalLink(e)) return { kind: 'erm', h, entry: e };
   }
   return { kind: 'article', h, entry: e };
@@ -771,6 +781,7 @@ function parseEfetch(xml){
         return ((ln ? ln.textContent : '') + ' ' + (ini ? ini.textContent : '')).trim();
       }).filter(Boolean),
       abstractParts: qa('Abstract > AbstractText', art).map(t => ({ label: t.getAttribute('Label') || '', text: t.textContent.trim() })).filter(p => p.text),
+      copyright: ((q('Abstract > CopyrightInformation', art) || {}).textContent || '').trim(),   // 例如「Copyright © 2024 Elsevier Ltd.」
       pubtypes: qa('PublicationTypeList > PublicationType', art).map(t => t.textContent),
       lang: qa('Language', art).map(l => l.textContent),
       doi: ids.doi || '', pmc: ids.pmc || '', pii: ids.pii || '',
@@ -1239,7 +1250,9 @@ function emptyState(es){
 }
 function paintAIPanel(){
   const N = Math.max(10, +CONFIG.ai.summaryN || 20);
-  const withAbs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, N);
+  const pool = S.records.filter(r => r.abstractParts && r.abstractParts.length);
+  const withAbs = pool.filter(aiEligible).slice(0, N);
+  const skipped = CONFIG.ai.excludeElsevier ? pool.filter(r => !aiEligible(r)).length : 0;
   const byRelay = summaryRelayOn();
   const show = S.src === 'direct' && withAbs.length > 0 && byRelay;
   $('#aipanel').hidden = !show;
@@ -1248,7 +1261,8 @@ function paintAIPanel(){
   $('#ai-action').hidden = !byRelay;
   const b = $('#summarize');
   if (!b.disabled && b.textContent !== '再試一次') b.textContent = codeReady() ? '請 AI 整理重點（只依據上列文獻的摘要）' : '輸入通關碼，請 AI 整理重點';
-  $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻；不會加入清單以外的內容。';
+  $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + n + ' 筆有摘要的文獻；不會加入清單以外的內容。'
+    + (skipped ? '　另有 ' + skipped + ' 篇 Elsevier 期刊的摘要依出版社要求未送交 AI（清單上仍可閱讀）。' : '');
 }
 // 每篇摘要能帶多少字。原則：先讓每一篇都拿到完整摘要，只有在總量超過上限時才砍，
 // 而且不是齊頭砍——齊頭砍會連短摘要一起砍掉、長的也還是不夠。改用水位法：
@@ -1288,14 +1302,16 @@ async function aiSummarize(opts){
   const gen = S.gen || 0;                          // 這份整理屬於哪一次查詢
   const stale = () => gen !== (S.gen || 0);        // 使用者已另起新查詢 → 這份整理作廢，不貼回畫面
   const N = Math.max(4, +CONFIG.ai.summaryN || 20);
-  const recs = S.records.filter(r => r.abstractParts && r.abstractParts.length).slice(0, N);
+  const recs = S.records.filter(aiEligible).slice(0, N);
   if (!recs.length) return;
   const valid = new Set(recs.map(r => r.n));
   // 每篇摘要能帶多少字：先給足，總量爆了才砍最長的（見 abstractBudget）。
   const per = abstractBudget(recs.map(r => absText(r).length), +CONFIG.ai.summaryChars || 24000, 8000);
   const btn = $('#summarize'); btn.disabled = true; btn.textContent = 'AI 整理中…';
   $('#aipanel').hidden = false; $('#ai-action').hidden = false;
-  $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + recs.length + ' 筆有摘要的文獻；不會加入清單以外的內容。';
+  const skippedN = CONFIG.ai.excludeElsevier ? S.records.filter(r => r.abstractParts && r.abstractParts.length && !aiEligible(r)).length : 0;
+  $('#ai-scope').textContent = '只依據目前載入、依相關性排序的前 ' + recs.length + ' 筆有摘要的文獻；不會加入清單以外的內容。'
+    + (skippedN ? '　另有 ' + skippedN + ' 篇 Elsevier 期刊的摘要依出版社要求未送交 AI（清單上仍可閱讀）。' : '');
   try {
     const d = await withCode(() => relay('summarize', {
       question: cleanText(S.question || S.term, 500),
@@ -1511,7 +1527,7 @@ async function search(opts = {}){
         } else if (!S.records.length) emptyState(es);
         $('#more-wrap').hidden = !(S.retstart < S.count);
         paintAIPanel();
-        if (fresh && summaryRelayOn() && codeReady() && CONFIG.ai.autoSummary && S.records.some(r => r.abstractParts && r.abstractParts.length)) aiSummarize();   // 有中繼站（且有通關碼）就自動整理；不等它，結果先呈現
+        if (fresh && summaryRelayOn() && codeReady() && CONFIG.ai.autoSummary && S.records.some(aiEligible)) aiSummarize();   // 有中繼站（且有通關碼）就自動整理；不等它，結果先呈現
         return;
       } catch (e) {
         if (!(e instanceof TypeError)) throw e;   // 真正的查詢錯誤照常顯示
