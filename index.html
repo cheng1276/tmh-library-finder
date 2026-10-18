@@ -533,7 +533,7 @@ const CONFIG = {
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.8（2026-10）'
+  version: '5.9（2026-10）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1132,7 +1132,7 @@ function paintLedger(es){
     let html = '';
     if (tr.question) html += '<div><strong>AI 歸納的問題：</strong>' + esc(tr.question) + (tr.type && TYPE[tr.type] ? '（' + TYPE[tr.type] + '）' : '') + '</div>';
     if (tr.pico.length) html += '<div class="small" style="margin-top:4px">' + tr.pico.map(esc).join('　') + '</div>';
-    if (tr.note) html += '<div style="margin-top:6px">' + esc(tr.note) + '</div>';
+    if (tr.note) html += '<div style="margin-top:6px"><strong>AI 的構思：</strong>' + esc(tr.note) + '</div>';   // 中繼站 p8 起，NOTE 是「怎麼構思 PICO 與檢索式」的說明，不是對題目的回答
     const chips = [];
     if (tr.suggest && SUG[tr.suggest] && $('#pt').value !== SUG_VALUE[tr.suggest]) chips.push('<button type="button" class="ex" data-suggest="' + esc(tr.suggest) + '">建議先看：' + SUG[tr.suggest] + '</button>');
     tr.alternatives.forEach((a, i) => chips.push('<button type="button" class="ex" data-alt="' + i + '" title="' + esc(a.query) + '">換一種檢索：' + esc(a.label) + '</button>'));
