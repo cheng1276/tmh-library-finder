@@ -35,10 +35,10 @@
  */
 const API = '/api/ai';   // 中繼站的路徑；其餘網址一律當成網站檔案
 
-const VERSION = '3.5 (2026-09) / Pages';
+const VERSION = '3.6 (2026-10) / Pages';
 // 提示詞版本。改動任何提示詞就把它加一 —— 快取鍵含這個版本，舊的結果會自動作廢。
 // （之前改了提示詞卻沒換快取鍵，同一個問題一直回舊的短檢索式，改什麼都看不出效果。）
-const PROMPT_V = 'p7';
+const PROMPT_V = 'p8';
 
 /* ---------------- 提示詞（只在這裡，網頁不能改） ---------------- */
 /* 兩個提示詞共用的文體規範。
@@ -77,7 +77,7 @@ TYPE: therapy 或 diagnosis 或 prognosis 或 etiology 或 other
 PICO: P=… | I=… | C=… | O=…（每欄用繁體中文具體描述，例如 P=65 歲以上、接受髖部骨折手術的住院病人；沒有的欄位留空）
 SUGGEST: sr 或 rct 或 guideline（不確定就留空）
 ALT: 標籤 | 另一條英文檢索式　（輸出三行，三個真的不一樣的切入角度）
-NOTE: 兩到三句繁體中文，講這個臨床題目本身現在的證據長什麼樣
+NOTE: 三到五句繁體中文，說明你怎麼把使用者的話構思成上面的 PICO 與檢索式（不是回答問題）
 
 QUESTION 的寫法：
 - 寫成同事之間口頭會講的那種話，一看就知道在問什麼。
@@ -92,11 +92,12 @@ ALT 的寫法（這三顆按鈕是使用者換角度的入口，標籤寫得好�
 
 ${STYLE}
 
-NOTE 的寫法：
-- 講這個臨床題目目前的證據大致長什麼樣：主軸是什麼、爭議點在哪、臨床上查的時候要注意什麼。
-- 知道關鍵的大型試驗、統合分析或指引名稱就寫出來（例如 DAPA-HF、EMPEROR-Reduced、HELP 計畫）；把握不大就不要提名字，改講證據型態（例如以小型單中心試驗為主、以觀察性研究為主）。
-- 不要寫具體數字（百分比、OR、HR、信賴區間）。那些要看下面實際查到的文獻，不是由你回憶。
-- 禁止描述檢索技術：不要寫「拆成幾個核心概念」「用了 MeSH 加自由詞」「這樣可能會漏掉什麼」。使用者要的是對題目的判斷，不是檢索教學。
+NOTE 的寫法（這一段是給使用者看的「構思說明」，讓他能檢查你有沒有誤解他的問題）：
+- 依 P、I、C、O 的順序說明你從使用者的話裡抓出了什麼、為什麼這樣定；使用者沒講清楚而你自行假設的部分（例如年齡、照護場域、結果指標、追蹤時間）要明講，他才知道該不該改。
+- 說明檢索式與 PICO 的對應：哪幾個概念進了檢索式、哪些刻意不放（通常 C 與 O 不放，因為摘要裡不一定會寫到，放了反而漏文獻），以及同義詞或 MeSH 的選擇若有特別考量就說一句（例如舊文獻用 acute confusion、縮寫、英美拼法、上位詞）。
+- 若使用者的情境可以有不止一種問法，說明你選了哪一種、另一種在替代檢索裡。
+- 不要回答這個臨床問題：不要講證據現況、不要下臨床結論、不要提試驗或指引名稱、不要寫數字。那些由下方實際查到的文獻與重點整理決定。
+- 寫成連貫的段落，不要條列、不要出現「P：」「I：」這種欄位抄寫；語氣專業、簡潔。
 
 QUERY 的寫法：
 - 拆出 2–4 個核心概念；每個概念用 MeSH 詞（[mh]）加上 3–5 個同義自由詞（[tiab]）以 OR 併列，概念之間用 AND 連接。
@@ -118,7 +119,7 @@ SUGGEST: sr
 ALT: 只看非藥物介入 | (Hip Fractures[mh] OR hip fracture[tiab]) AND (Delirium[mh] OR delirium[tiab]) AND (multicomponent intervention[tiab] OR care bundle[tiab] OR orthogeriatric[tiab] OR reorientation[tiab] OR early mobilization[tiab])
 ALT: 改看藥物預防 | (Hip Fractures[mh] OR hip fracture[tiab]) AND (Delirium[mh] OR delirium[tiab]) AND (melatonin[tiab] OR ramelteon[tiab] OR dexmedetomidine[tiab] OR haloperidol[tiab] OR antipsychotic[tiab])
 ALT: 改看麻醉方式 | (Hip Fractures[mh] OR hip fracture[tiab]) AND (Delirium[mh] OR delirium[tiab]) AND (Anesthesia, Spinal[mh] OR spinal anesthesia[tiab] OR regional anesthesia[tiab] OR general anesthesia[tiab] OR nerve block[tiab])
-NOTE: 這個題目的證據以多成分介入為主軸，HELP（Hospital Elder Life Program）系列與後續的統合分析大致支持它有效，是目前指引的主要依據。藥物預防一直有爭議：melatonin 與 dexmedetomidine 的試驗結果不一致，抗精神病藥物用於預防多半沒有站得住腳的效果。麻醉方式（脊椎 vs 全身）近年有大型隨機試驗，若同事是為了這一點而查，要留意各試驗評估譫妄的工具不一定相同。`;
+NOTE: 使用者提到「老年」與「術後」，所以族群定為 65 歲以上、接受髖部骨折手術的住院病人；他問的是「如何預防」而沒有指定方法，因此介入涵蓋各類預防措施，檢索式只用「預防」這個概念而不列舉個別做法，以免漏掉非藥物措施。比較組假設為常規照護，結果指標取術後譫妄的發生率，這兩項都不放進檢索式，因為摘要不一定寫到。譫妄一概念除了 MeSH 之外補上 acute confusion、postoperative confusion 等舊文獻慣用語。若其實想看的是某一類介入，三個替代檢索分別限縮到非藥物介入、藥物預防與麻醉方式。`;
 
 const SYS_SUMMARIZE = `你是實證醫學圖書館員。使用者會給你一個問題，以及一份有編號的文獻清單（含摘要）。
 請只根據這些摘要，用繁體中文寫 400–500 字的重點整理（全文絕不超過 550 字，每段 120–170 字；超過會被系統截斷），分成三段，每段以下列小標開頭（小標單獨一行，後面接內容）：
