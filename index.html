@@ -173,6 +173,7 @@
   .promptbox-wrap summary{cursor:pointer}
   .promptbox{width:100%;min-height:120px;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;background:var(--soft);resize:vertical}
   footer .ver{display:block;margin-top:4px;opacity:.8}
+  footer .credit{display:block;margin-top:4px;opacity:.8}
 
   /* results */
   ol#results{list-style:none;margin:18px 0 0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:10px}
@@ -452,7 +453,7 @@
   </form>
 </div>
 
-<footer>資料來源：NCBI PubMed（E-utilities）。全文透過台南市立醫院圖書館遠端連線系統取得，依各資料庫授權範圍為準。<span class="ver" id="ver"></span></footer>
+<footer>資料來源：NCBI PubMed（E-utilities）。全文透過台南市立醫院圖書館遠端連線系統取得，依各資料庫授權範圍為準。<span class="ver" id="ver"></span><span class="credit">台南市立醫院免疫風濕科 鄭傑夫醫師 製作</span></footer>
 
 <script>
 /* =========================================================
@@ -533,7 +534,7 @@ const CONFIG = {
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.9（2026-10）'
+  version: '5.10（2026-10）'
 };
 
 /* ---------- 小工具 ---------- */
