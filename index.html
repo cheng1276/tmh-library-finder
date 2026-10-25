@@ -534,7 +534,7 @@ const CONFIG = {
                                   // 才從最長的幾篇砍到同一個水位，短的原封不動。
                                   // 20 篇時水位約 1,200 字元／篇；10 篇時約 2,400。單篇最多 8,000。
   },
-  version: '5.10（2026-10）'
+  version: '5.11（2026-10）'
 };
 
 /* ---------- 小工具 ---------- */
@@ -1096,7 +1096,7 @@ function paintPills(){
   }
   const ac = $('#about-code'); if (ac) ac.hidden = !(relayOn() && S.needCode);
   a.hidden = !relayOn();                 // 沒有中繼站就不顯示這顆燈，頁面單純一點
-  $('#ai-opt').hidden = !relayOn();
+  $('#ai-opt').hidden = !relayOn() || S.mode === 'guided';   // 引導式查詢直接用組好的檢索式，不經 AI 轉換，這個選項在那裡沒有意義
   const ab = $('#about-ai'); if (ab) ab.hidden = !relayOn();
   const ar = $('#about-relay'); if (ar) ar.hidden = !relayOn();
   const sw = $('#set-ai-wrap'); if (sw) sw.hidden = !S.ai;
@@ -1426,6 +1426,7 @@ function initGuided(){
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     S.mode = t.dataset.mode; document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
     $('#mode-quick').hidden = S.mode !== 'quick'; $('#mode-guided').hidden = S.mode !== 'guided';
+    paintPills();                                   // AI 轉檢索式的勾選框只在快速查詢顯示
     if (S.mode === 'guided') { paintComposed(); const p = document.querySelector('.concept[data-k="P"] input'); if (p && !S.guided.P.length) p.focus(); } else $('#q').focus();
   }));
   document.querySelectorAll('.concept').forEach(row => {
